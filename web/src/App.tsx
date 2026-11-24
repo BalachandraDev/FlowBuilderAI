@@ -1,5 +1,8 @@
 import { useEffect, type ReactElement } from 'react'
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, HashRouter, Navigate, Route, Routes } from 'react-router-dom'
+
+// The browser demo is a static site (GitHub Pages), where a deep link or a reload of /p/123 would be a 404, so it keeps its place after the #.
+const Router = import.meta.env.VITE_DEMO === 'true' ? HashRouter : BrowserRouter
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query'
 import { ApiError } from './api/client'
 import { keys } from './api/hooks'
@@ -99,9 +102,9 @@ export default function App() {
     <QueryClientProvider client={client}>
       <ToastProvider>
         <SessionProvider>
-          <BrowserRouter>
+          <Router>
             <AppRoutes />
-          </BrowserRouter>
+          </Router>
         </SessionProvider>
       </ToastProvider>
     </QueryClientProvider>

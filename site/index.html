@@ -4,31 +4,32 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>FlowBuilderAI</title>
-<meta name="description" content="Turns what a hospital department says into a workflow diagram and an implementation document (PDF), for BACKBONE (HMS) implementations.">
+<meta name="description" content="Turns what a hospital department says into a workflow diagram and an implementation document (PDF). Try the live demo in your browser.">
 <style>
   :root {
     --bg: #f6f7f9; --panel: #ffffff; --ink: #0f172a; --muted: #55607a; --line: #dfe3ea;
-    --accent: #2457d6; --accent-ink: #ffffff; --code: #0f172a; --code-ink: #e6ebf5;
+    --accent: #2457d6; --accent-ink: #ffffff; --code: #0f172a; --code-ink: #e6ebf5; --soft: #eef2fb;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
       --bg: #0b1220; --panel: #121a2b; --ink: #eef2fa; --muted: #9aa6bf; --line: #24304a;
-      --accent: #6c93ff; --accent-ink: #0b1220; --code: #060b16; --code-ink: #e6ebf5;
+      --accent: #6c93ff; --accent-ink: #0b1220; --code: #060b16; --code-ink: #e6ebf5; --soft: #17223a;
     }
   }
   :root[data-theme="dark"] {
     --bg: #0b1220; --panel: #121a2b; --ink: #eef2fa; --muted: #9aa6bf; --line: #24304a;
-    --accent: #6c93ff; --accent-ink: #0b1220; --code: #060b16; --code-ink: #e6ebf5;
+    --accent: #6c93ff; --accent-ink: #0b1220; --code: #060b16; --code-ink: #e6ebf5; --soft: #17223a;
   }
   * { box-sizing: border-box; }
   html { scroll-behavior: smooth; }
   body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
   a { color: var(--accent); }
+  code { font: 0.92em ui-monospace, "Cascadia Code", Consolas, monospace; background: var(--soft); padding: 1px 6px; border-radius: 6px; }
   .wrap { max-width: 1080px; margin: 0 auto; padding: 0 16px; }
-  header.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 0; }
+  header.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 0; flex-wrap: wrap; }
   .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: -0.01em; }
   .logo { width: 32px; height: 32px; border-radius: 9px; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; font-weight: 800; }
-  nav a { margin-left: 16px; text-decoration: none; color: var(--muted); font-size: 15px; }
+  nav a { margin-left: 16px; text-decoration: none; color: var(--muted); font-size: 15px; white-space: nowrap; }
   nav a:hover { color: var(--ink); }
   .hero { display: grid; grid-template-columns: 1.05fr 1fr; gap: 40px; align-items: center; padding: 48px 0 56px; }
   h1 { font-size: clamp(2rem, 5vw, 3.4rem); line-height: 1.05; letter-spacing: -0.03em; margin: 0 0 16px; }
@@ -37,35 +38,47 @@
   .btn { display: inline-block; padding: 11px 18px; border-radius: 10px; font-weight: 600; text-decoration: none; border: 1px solid var(--line); color: var(--ink); background: var(--panel); transition: transform .08s ease; }
   .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
   .btn:active { transform: scale(.98); }
-  .shot { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: var(--panel); box-shadow: 0 18px 40px -22px rgba(15, 23, 42, .45); }
+  .shot { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: var(--panel); box-shadow: 0 18px 40px -22px rgba(15, 23, 42, .45); margin: 0; }
   .shot img { display: block; width: 100%; height: auto; }
   .shot figcaption { padding: 10px 14px; font-size: 14px; color: var(--muted); border-top: 1px solid var(--line); }
   section { padding: 36px 0; border-top: 1px solid var(--line); }
   h2 { font-size: 1.6rem; letter-spacing: -0.02em; margin: 0 0 20px; }
+  h3 { font-size: 1.05rem; margin: 0 0 6px; }
   .steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; counter-reset: s; }
   .steps li { counter-increment: s; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
   .steps li::before { content: counter(s); display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; margin-bottom: 8px; }
   .steps b { display: block; margin-bottom: 4px; }
   .steps span { color: var(--muted); font-size: 15px; }
   .two { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; }
   ul.plain { margin: 0; padding-left: 20px; color: var(--muted); }
   ul.plain li { margin: 6px 0; }
   ul.plain b { color: var(--ink); }
+  .creds { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 0; align-items: baseline; }
+  .creds dt { font-weight: 600; } .creds dd { margin: 0; color: var(--muted); }
+  pre code { background: none; padding: 0; font-size: inherit; color: inherit; }
   pre { background: var(--code); color: var(--code-ink); padding: 16px; border-radius: 12px; overflow-x: auto; font: 14px/1.6 ui-monospace, "Cascadia Code", Consolas, monospace; margin: 12px 0; }
   .note { background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 10px; padding: 12px 16px; color: var(--muted); font-size: 15px; }
+  .arch { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; align-items: stretch; margin: 0 0 18px; padding: 0; list-style: none; }
+  .arch li { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; position: relative; }
+  .arch li b { display: block; }
+  .arch li span { color: var(--muted); font-size: 14px; }
+  .arch li:not(:last-child)::after { content: "\2192"; position: absolute; right: -14px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 18px; }
   footer { padding: 28px 0 48px; color: var(--muted); font-size: 14px; border-top: 1px solid var(--line); }
-  @media (max-width: 820px) { .hero, .two { grid-template-columns: 1fr; } .hero { padding-top: 24px; } nav a { margin-left: 12px; } }
-  @media (max-width: 520px) { nav a:first-child { display: none; } nav a { white-space: nowrap; } }
+  @media (max-width: 820px) { .hero, .two { grid-template-columns: 1fr; } .hero { padding-top: 24px; } nav a { margin-left: 12px; } .arch li:not(:last-child)::after { display: none; } }
+  @media (max-width: 520px) { nav a.opt { display: none; } }
   @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .btn { transition: none; } }
 </style>
 </head>
 <body>
 <div class="wrap">
   <header class="top">
-    <div class="brand"><span class="logo" aria-hidden="true">b</span> FlowBuilderAI</div>
+    <div class="brand"><span class="logo" aria-hidden="true">F</span> FlowBuilderAI</div>
     <nav aria-label="Sections">
-      <a href="#how">How it works</a>
-      <a href="#run">Run it</a>
+      <a class="opt" href="#demo">Live demo</a>
+      <a class="opt" href="#how">How it works</a>
+      <a class="opt" href="#inside">Under the hood</a>
+      <a href="#run">Docker</a>
       <a href="#repo" data-repo>Source</a>
     </nav>
   </header>
@@ -74,17 +87,43 @@
     <div class="hero">
       <div>
         <h1>From what the department says to the document the developers need.</h1>
-        <p class="lead">Consultants capture how a hospital department works, by typing, voice, photos or files. A free AI structures it into a workflow diagram and a PDF implementation document, for BACKBONE (HMS) implementations by AOSTA India Pvt Ltd.</p>
+        <p class="lead">Consultants capture how a hospital department works, by typing, voice, photos or files. A free AI structures it into a workflow diagram and a PDF implementation document. Try the whole app in your browser, no sign-up and no server.</p>
         <div class="btns">
-          <a class="btn primary" href="#run">Run it with Docker</a>
+          <a class="btn primary" href="app/">Open the live demo</a>
+          <a class="btn" href="#run">Run it with Docker</a>
           <a class="btn" href="#repo" data-repo>View the source</a>
         </div>
       </div>
-      <figure class="shot" style="margin:0">
+      <figure class="shot">
         <img src="img/choose-headings.png" width="1280" height="760" alt="The window where the consultant ticks what the document holds, renames a heading, and sees the printed page beside it.">
         <figcaption>Choose what the document holds and rename its headings; the page on the right is what prints.</figcaption>
       </figure>
     </div>
+
+    <section id="demo">
+      <h2>Try the live demo</h2>
+      <div class="two">
+        <div class="card">
+          <h3>Sign in with one click</h3>
+          <p style="margin:0 0 12px;color:var(--muted)">The demo opens with a finished example. A panel at the bottom left of the demo signs you in as either person, or you can type the accounts in.</p>
+          <dl class="creds">
+            <dt>Consultant</dt><dd><code>asha@demo.local</code> <code>Demo-Passw0rd-123</code></dd>
+            <dt>Administrator</dt><dd><code>admin@demo.local</code> <code>Demo-Admin-123</code></dd>
+          </dl>
+          <p style="margin:14px 0 0"><a class="btn primary" href="app/">Open the live demo</a></p>
+        </div>
+        <div class="card">
+          <h3>A five-minute walkthrough</h3>
+          <ol class="plain" style="margin:0;padding-left:20px;color:var(--muted)">
+            <li style="margin:6px 0">As the consultant, open <b style="color:var(--ink)">IP case sheet receive</b>: notes, workflow diagram, questions and the document.</li>
+            <li style="margin:6px 0">Press <b style="color:var(--ink)">New project</b>, type a note, then <b style="color:var(--ink)">Analyse and make the document</b>.</li>
+            <li style="margin:6px 0">Tick what the document holds and <b style="color:var(--ink)">rename a heading</b>; open the PDF.</li>
+            <li style="margin:6px 0">Mark it <b style="color:var(--ink)">final</b>, switch to the administrator and <b style="color:var(--ink)">verify</b> it.</li>
+          </ol>
+        </div>
+      </div>
+      <p class="note" style="margin-top:16px"><b style="color:var(--ink)">What the demo is.</b> The same web app as the real product, running entirely in your browser: a small demo backend inside the page answers its API calls, and your changes stay in your browser (use <b>Reset demo</b> to start again). The analysis returns one fixed example, exactly as the real server does in its built-in demo mode (that example was recorded from the real server). <b>What it is not:</b> the real server, database and AI. Voice and photo notes need those, so they are switched off here, and the PDF opens as a printable page (Ctrl+P, Save as PDF) instead of being drawn by the server's browser engine.</p>
+    </section>
 
     <section id="how">
       <h2>How it works</h2>
@@ -92,19 +131,15 @@
         <li><b>Capture</b><span>Type, record voice, or add photos and files of the department's own notes.</span></li>
         <li><b>Analyse</b><span>The AI turns the notes into steps, rules, requirements and open questions. Every analysis is a version.</span></li>
         <li><b>Review</b><span>The workflow is drawn as a diagram. Answer the open questions, edit, analyse again.</span></li>
-        <li><b>Document</b><span>One PDF, laid out like the company's requirement documents, with your headings. The administrator sees the final ones.</span></li>
+        <li><b>Document</b><span>One PDF, laid out like a requirements document, with your headings. The administrator sees the final ones and verifies them.</span></li>
       </ol>
-    </section>
-
-    <section>
-      <h2>Who uses it</h2>
-      <div class="two">
+      <div class="two" style="margin-top:20px">
         <div>
           <b>Administrator</b>
           <ul class="plain">
             <li>Adds users, clients and the <b>modules</b> users can pick (Ward, Pharmacy, Billing...)</li>
             <li>Pastes the free AI key into the app, stored encrypted</li>
-            <li>Sees only the documents users mark <b>final</b></li>
+            <li>Sees only the documents users mark <b>final</b>, and verifies or returns them</li>
           </ul>
         </div>
         <div>
@@ -122,15 +157,31 @@
       </figure>
     </section>
 
+    <section id="inside">
+      <h2>Under the hood</h2>
+      <ol class="arch" aria-label="Architecture">
+        <li><b>React web app</b><span>React 19, TypeScript, Vite, installable PWA, TanStack Query with optimistic updates</span></li>
+        <li><b>.NET 9 API</b><span>Layered: Domain, Application (MediatR, FluentValidation), Infrastructure, Api. JWT sign-in</span></li>
+        <li><b>SQL Server</b><span>EF Core, migrations, every analysis and edit kept as a version</span></li>
+        <li><b>AI and documents</b><span>Gemini (free), Claude or a demo mode; Chromium draws the diagram and PDF</span></li>
+      </ol>
+      <ul class="plain">
+        <li><b>The AI's answer is checked, not trusted:</b> it must match a JSON schema, patient identifiers are masked before text leaves the server, and a person's locked edits are never overwritten by a new analysis.</li>
+        <li><b>Business rules are explicit:</b> a document goes Working, Final, then Verified or Returned; only the administrator verifies; a verified version cannot be taken back.</li>
+        <li><b>Slow work is queued:</b> analyses and PDFs run as background jobs while the screen shows progress.</li>
+        <li><b>Tested at every layer:</b> unit and integration tests on the server, component tests on the web app, and real-browser tests on desktop and phone sizes, including this demo.</li>
+      </ul>
+    </section>
+
     <section id="run">
-      <h2>Run it with Docker</h2>
+      <h2>Run the real thing with Docker</h2>
       <p>The image holds the API and the web app together, with Chromium for the diagrams and the PDF. It needs SQL Server, so the compose file starts one beside it.</p>
       <pre><code>git clone <span data-clone>https://github.com/BalachandraDev/FlowBuilderAI.git</span>
 cd FlowBuilderAI
 cp .env.example .env     # set SQL_SA_PASSWORD and JWT_SIGNING_KEY
 docker compose -f docker-compose.release.yml up -d
 # open http://localhost:8080</code></pre>
-      <p class="note">This page is static, so it cannot run the app: the server and its database are what the Docker image is for. Put the container on a server with HTTPS in front of it to share it with others (recording and installing on a phone need HTTPS).</p>
+      <p class="note">The published image is <code>ghcr.io/balachandradev/flowbuilderai</code>. To share the real app with others, run the container on a server with HTTPS in front (recording and installing on a phone need HTTPS). GitHub Pages only serves static files, which is why this page runs the demo instead.</p>
     </section>
 
     <section id="repo">
@@ -138,11 +189,12 @@ docker compose -f docker-compose.release.yml up -d
       <ul class="plain">
         <li>Source: <a data-repo href="#repo">the repository</a> (.NET 9 API, React web app, tests, documents in <code>docs/</code>)</li>
         <li>Image: <a data-pkg href="#repo">GitHub Container Registry</a>, built by GitHub Actions on every push to the main branch</li>
+        <li>This page and the demo are rebuilt by GitHub Actions on every push as well</li>
       </ul>
     </section>
   </main>
 
-  <footer>FlowBuilderAI. Screenshots show demo data only.</footer>
+  <footer>FlowBuilderAI. The demo and the screenshots show sample data only.</footer>
 </div>
 <script>
   // On github.io the owner and repository are in the address, so the links can point at the right place.

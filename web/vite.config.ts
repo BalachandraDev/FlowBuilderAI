@@ -7,10 +7,15 @@ import { VitePWA } from 'vite-plugin-pwa'
 // While developing (npm run dev) the API is reached through the proxy below, so nothing needs CORS.
 const apiTarget = process.env.FLOWCAPTURE_API ?? 'http://localhost:5199'
 
+// The browser demo (npm run build:demo): the same app with a demo backend inside the page, published as a static site (GitHub Pages) under /FlowBuilderAI/app/.
+const demo = process.env.VITE_DEMO === 'true'
+
 export default defineConfig({
+  base: demo ? (process.env.DEMO_BASE ?? '/FlowBuilderAI/app/') : '/',
   plugins: [
     react(),
     VitePWA({
+      disable: demo,                     // no service worker in the demo: it would keep serving an old copy of the demo after an update
       registerType: 'autoUpdate',
       includeAssets: ['icons/*.png'],
       manifest: {
@@ -45,7 +50,7 @@ export default defineConfig({
     }),
   ],
   build: {
-    outDir: '../src/FlowCapture.Api/wwwroot',
+    outDir: demo ? '../site/app' : '../src/FlowCapture.Api/wwwroot',
     emptyOutDir: true,
     chunkSizeWarningLimit: 800,
   },
@@ -62,7 +67,7 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
     css: false,
-    exclude: ['e2e/**', 'node_modules/**'],
+    exclude: ['e2e/**', 'e2e-demo/**', 'node_modules/**'],
     // screens are typed into like a person would: on a busy machine a few of them need more than the default 5 seconds
     testTimeout: 20_000,
   },

@@ -25,3 +25,9 @@ web/playwright-report/
 
 # cancelled Blazor/MAUI code, kept locally only
 archive/
+
+# the browser demo is built by GitHub Actions into site/app (npm run build:demo in web/)
+site/app/
+web/test-results/
+
+*.tsbuildinfo

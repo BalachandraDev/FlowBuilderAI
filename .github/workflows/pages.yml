@@ -6,7 +6,7 @@ name: Project site
 on:
   push:
     branches: [main]
-    paths: ["site/**", ".github/workflows/pages.yml"]
+    paths: ["site/**", "web/**", ".github/workflows/pages.yml"]
   workflow_dispatch:
 
 permissions:
@@ -27,6 +27,19 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      # the live demo: the web app with a demo backend inside the page, built into site/app (the site is the project page plus the demo)
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Build the browser demo
+        working-directory: web
+        env:
+          DEMO_BASE: /${{ github.event.repository.name }}/app/
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build:demo
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

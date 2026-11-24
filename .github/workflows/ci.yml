@@ -27,6 +27,24 @@ jobs:
       - run: npm test
       - run: npm run build
 
+  demo:
+    name: Browser demo (build, real-browser tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build:demo
+      # the same site GitHub Pages serves, under /FlowBuilderAI/, driven by the Chrome that is installed on the runner
+      - run: npx playwright test -c playwright.demo.config.ts
+
   server:
     name: Server (build, unit tests)
     runs-on: ubuntu-latest

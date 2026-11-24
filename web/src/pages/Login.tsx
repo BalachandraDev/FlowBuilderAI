@@ -34,7 +34,7 @@ export function Login() {
             <li><FilePdf size={20} weight="duotone" />One document per request, per module, or for the whole project.</li>
           </ul>
         </div>
-        <span className="login-foot">AOSTA INDIA PRIVATE LIMITED · BACKBONE</span>
+        <span className="login-foot">{import.meta.env.VITE_DEMO === 'true' ? 'FlowBuilderAI · browser demo with sample data' : 'AOSTA INDIA PRIVATE LIMITED · BACKBONE'}</span>
       </aside>
       <main className="login-panel">
         <form className="login-card" onSubmit={submit} noValidate>
