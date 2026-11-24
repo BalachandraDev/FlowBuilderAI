@@ -1,0 +1,151 @@
+{
+  "schemaVersion": "1.0",
+  "flowTitle": "Default Department/Ward Selection in IP Case Sheet Receive Menu",
+  "department": "MRD",
+  "moduleCode": "MRD",
+  "purpose": "Define the functional requirement for displaying the user's default department/ward in the department/ward selection dropdown of the IP Case Sheet Receive in Department menu when the user is a super user.",
+  "scope": "Applies to the inpatient (IP) module where MRD users receive case sheets in departments/wards. Super users have their mapped department/ward pre-selected and can change it; other users select the department/ward manually.",
+  "actors": [
+    { "id": "ACT1", "role": "MRD user", "department": "MRD", "sourceEntryIds": ["E1", "E2"] },
+    { "id": "ACT2", "role": "Super user", "department": "MRD", "sourceEntryIds": ["E1"] },
+    { "id": "ACT3", "role": "System", "department": "BACKBONE", "sourceEntryIds": ["E1"] }
+  ],
+  "trigger": "User opens the IP Case Sheet Receive in Department menu when a case sheet has come to the department.",
+  "preConditions": [
+    { "id": "PRE1", "text": "A case sheet has been sent to the department/ward and is awaiting receipt.", "sourceEntryIds": ["E1"] },
+    { "id": "PRE2", "text": "For super users: the user is mapped to a default department/ward in user mapping.", "sourceEntryIds": ["E1"] }
+  ],
+  "postConditions": [
+    { "id": "POST1", "text": "The selected patients' case sheets are received in the chosen department/ward.", "sourceEntryIds": ["E1"] }
+  ],
+  "steps": [
+    {
+      "id": "S1", "actor": "MRD user",
+      "action": "Opens the IP Case Sheet Receive in Department menu.",
+      "screen": "IP Case Sheet Receive in Department",
+      "inputs": [], "outputs": ["Department/ward dropdown is displayed"],
+      "next": ["D1"], "sourceEntryIds": ["E1"]
+    },
+    {
+      "id": "S2", "actor": "System",
+      "action": "Pre-selects the super user's mapped default department/ward in the dropdown.",
+      "screen": "IP Case Sheet Receive in Department",
+      "inputs": ["Default department/ward from user mapping"], "outputs": ["Dropdown shows the mapped department/ward"],
+      "next": ["S4"], "sourceEntryIds": ["E1"]
+    },
+    {
+      "id": "S3", "actor": "MRD user",
+      "action": "Selects the department/ward manually from the dropdown.",
+      "screen": "IP Case Sheet Receive in Department",
+      "inputs": ["Department/ward"], "outputs": ["Department/ward selected"],
+      "next": ["S4"], "sourceEntryIds": ["E1"]
+    },
+    {
+      "id": "S4", "actor": "MRD user",
+      "action": "Selects the patients whose case sheets are to be received.",
+      "screen": "IP Case Sheet Receive in Department",
+      "inputs": ["Department/ward"], "outputs": ["Selected patient list"],
+      "next": ["S5"], "sourceEntryIds": ["E1"]
+    },
+    {
+      "id": "S5", "actor": "MRD user",
+      "action": "Receives the selected case sheets.",
+      "screen": "IP Case Sheet Receive in Department",
+      "inputs": ["Selected patient list"], "outputs": ["Case sheets marked as received"],
+      "next": ["END"], "sourceEntryIds": ["E1"]
+    }
+  ],
+  "decisions": [
+    {
+      "id": "D1", "condition": "Is the user a super user?",
+      "yesPath": { "summary": "Mapped default department/ward is pre-selected.", "next": "S2" },
+      "noPath": { "summary": "No pre-selection; user selects manually.", "next": "S3" },
+      "sourceEntryIds": ["E1"]
+    }
+  ],
+  "alternateFlows": [
+    {
+      "id": "ALT1", "name": "Super user changes the pre-selected department/ward",
+      "condition": "The super user wants to receive case sheets for a department/ward other than the pre-selected one.",
+      "branchFrom": "S2",
+      "steps": ["Super user selects a different department/ward from the dropdown."],
+      "rejoinAt": "S4", "sourceEntryIds": ["E1"]
+    }
+  ],
+  "exceptionFlows": [],
+  "businessRules": [
+    { "id": "BR1", "rule": "For a super user, the department/ward dropdown defaults to the department/ward assigned in user mapping.", "appliesTo": ["S2", "D1"], "sourceEntryIds": ["E1"] },
+    { "id": "BR2", "rule": "A super user can change the pre-selected department/ward.", "appliesTo": ["ALT1"], "sourceEntryIds": ["E1"] },
+    { "id": "BR3", "rule": "For users who are not super users, no department/ward is pre-selected and the dropdown works as before.", "appliesTo": ["S3", "D1"], "sourceEntryIds": ["E1"] }
+  ],
+  "validations": [],
+  "dataEntities": [
+    {
+      "id": "DE1", "name": "User mapping",
+      "fields": [
+        { "name": "Super user flag", "type": "To be confirmed", "mandatory": "To be confirmed", "source": "User mapping settings" },
+        { "name": "Default department/ward", "type": "To be confirmed", "mandatory": "To be confirmed", "source": "User mapping settings" }
+      ],
+      "suggestedChange": "To be confirmed",
+      "sourceEntryIds": ["E1"]
+    }
+  ],
+  "screens": [
+    {
+      "id": "SC1", "menuName": "IP Case Sheet Receive in Department",
+      "fields": [
+        { "name": "Department/Ward", "type": "Dropdown", "mandatory": "To be confirmed", "defaultValue": "Mapped department/ward for super users; no selection for other users", "source": "Department/ward master" },
+        { "name": "Patient selection", "type": "To be confirmed", "mandatory": "To be confirmed", "defaultValue": "Not applicable", "source": "To be confirmed" }
+      ],
+      "sourceEntryIds": ["E1"]
+    }
+  ],
+  "reportsAndPrints": [],
+  "integrations": [
+    { "id": "INT1", "system": "User mapping settings", "direction": "Inbound", "description": "Supplies the user's super-user status and mapped default department/ward to the IP Case Sheet Receive in Department menu.", "sourceEntryIds": ["E1"] }
+  ],
+  "requirements": [
+    {
+      "reqId": "REQ001",
+      "description": "Default Department/Ward Selection in IP Case Sheet Receive Menu: pre-select the super user's mapped department/ward (changeable); no pre-selection for other users.",
+      "category": "CR", "priority": "High", "sourceEntryIds": ["E1", "E2"]
+    }
+  ],
+  "acceptanceCriteria": [
+    { "id": "AC1", "reqId": "REQ001", "given": "A super user is mapped to a default department/ward", "when": "the user opens the IP Case Sheet Receive in Department menu", "then": "the department/ward dropdown shows the mapped department/ward as selected", "sourceEntryIds": ["E1"] },
+    { "id": "AC2", "reqId": "REQ001", "given": "A super user sees the pre-selected department/ward", "when": "the user selects a different department/ward in the dropdown", "then": "the dropdown accepts and shows the newly selected department/ward", "sourceEntryIds": ["E1"] },
+    { "id": "AC3", "reqId": "REQ001", "given": "A user who is not a super user", "when": "the user opens the IP Case Sheet Receive in Department menu", "then": "no department/ward is pre-selected and the user selects one manually", "sourceEntryIds": ["E1"] }
+  ],
+  "userRoles": [
+    { "id": "UR1", "userRole": "All MRD users", "frequency": "Frequent", "module": "MRD", "menuName": "IP Case Sheet Receive in Department", "sourceEntryIds": ["E2"] }
+  ],
+  "nonFunctionalNotes": [],
+  "useCase": {
+    "primaryActors": ["MRD user"],
+    "priority": "High",
+    "mainScenario": "The user opens the IP Case Sheet Receive in Department menu. For a super user the mapped department/ward is pre-selected and can be changed; other users select it manually. The user then selects the patients and receives the case sheets."
+  },
+  "gaps": [
+    { "id": "G1", "section": "businessRules", "description": "Behaviour is not stated when a super user is mapped to more than one department/ward." },
+    { "id": "G2", "section": "businessRules", "description": "It is not stated whether the department/ward chosen by the user is remembered for the session or the default is re-applied each time the menu opens." },
+    { "id": "G3", "section": "exceptionFlows", "description": "It is not stated what the dropdown shows when a super user has no default department/ward mapped." }
+  ],
+  "clarificationQuestions": [
+    { "id": "Q1", "section": "businessRules", "question": "If a super user is mapped to multiple wards, which one should be pre-selected?", "relatedGapId": "G1", "options": ["The first mapped ward", "A user-defined primary ward", "No pre-selection"] },
+    { "id": "Q2", "section": "businessRules", "question": "Should the department/ward the user selects be remembered for the session, or reset to the default every time the menu opens?", "relatedGapId": "G2", "options": ["Remember for the session", "Reset to default each time"] },
+    { "id": "Q3", "section": "exceptionFlows", "question": "What should the dropdown show when a super user has no default department/ward mapped?", "relatedGapId": "G3" }
+  ],
+  "confidence": {
+    "purposeAndScope": 0.9,
+    "actors": 0.85,
+    "steps": 0.9,
+    "decisions": 0.95,
+    "alternateAndExceptionFlows": 0.6,
+    "businessRulesAndValidations": 0.75,
+    "dataAndScreens": 0.5,
+    "reportsAndIntegrations": 0.5,
+    "requirements": 0.9
+  },
+  "changeLog": [],
+  "mermaid": "flowchart TD\n  subgraph L1[\"MRD user\"]\n    S1[\"1. Opens IP Case Sheet Receive in Department menu\"]\n    D1{\"Is the user a super user?\"}\n    S3[\"3. Selects department/ward manually\"]\n    S4[\"4. Selects the patients\"]\n    S5[\"5. Receives the selected case sheets\"]\n  end\n  subgraph L2[\"System\"]\n    S2[\"2. Pre-selects mapped default department/ward\"]\n  end\n  S1 --> D1\n  D1 -->|Yes| S2\n  D1 -->|No| S3\n  S2 --> S4\n  S3 --> S4\n  S4 --> S5\n  S5 --> END1([\"End\"])"
+}

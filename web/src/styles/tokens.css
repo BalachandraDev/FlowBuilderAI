@@ -1,0 +1,218 @@
+/*
+  FlowCapture design tokens: the single source of every colour, size, radius, shadow and speed used by the app.
+  Nothing else in the stylesheets writes a raw colour or a magic number when a token exists.
+
+  Look: a calm, precise workspace. Cool neutral surfaces, one cobalt accent, a dark navigation rail, hairline borders and
+  restrained depth. Geist is bundled with the app, so nothing waits for a download on a slow hospital network.
+*/
+:root {
+  /* type */
+  --font: "Geist Variable", "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: "Geist Mono Variable", ui-monospace, "Cascadia Code", Consolas, monospace;
+  --fs-2xs: .6875rem;   /* 11 */
+  --fs-xs: .75rem;      /* 12 */
+  --fs-sm: .8125rem;    /* 13 */
+  --fs-base: .9375rem;  /* 15 */
+  --fs-md: 1rem;        /* 16 */
+  --fs-lg: 1.125rem;    /* 18 */
+  --fs-xl: 1.375rem;    /* 22 */
+  --fs-2xl: 1.75rem;    /* 28 */
+  --fs-3xl: 2.5rem;     /* 40, big numbers */
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+
+  /* space (4 px grid) */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-8: 32px;
+  --s-10: 40px;
+  --s-12: 48px;
+
+  /* radius: controls, cards, dialogs */
+  --r-xs: 6px;
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-pill: 999px;
+
+  /* control heights */
+  --h-sm: 32px;
+  --h-md: 40px;
+  --h-lg: 46px;
+
+  /* icon sizes */
+  --icon-sm: 16px;
+  --icon-md: 20px;
+  --icon-lg: 24px;
+
+  /* layout */
+  --rail-w: 256px;
+  --rail-w-compact: 68px;
+  --topbar-h: 56px;
+  --tabbar-h: 62px;
+  --content-w: 1180px;
+
+  /* motion */
+  --ease: cubic-bezier(.2, .7, .2, 1);
+  --t-fast: 120ms;
+  --t-base: 180ms;
+  --t-slow: 320ms;
+
+  /* light theme */
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --surface-2: #f1f3f6;
+  --surface-3: #e8ebf0;
+  --text: #0f1728;
+  --text-2: #475467;
+  --text-3: #6b7689;
+  --line: #e3e6ec;
+  --line-strong: #c9d0db;
+  --hover: rgba(15, 23, 40, .045);
+  --press: rgba(15, 23, 40, .08);
+  --overlay: rgba(10, 16, 30, .5);
+
+  --accent: #2a5bd7;
+  --accent-hover: #2350bf;
+  --accent-press: #1d44a5;
+  --accent-contrast: #ffffff;
+  --accent-soft: rgba(42, 91, 215, .09);
+  --accent-softer: rgba(42, 91, 215, .05);
+  --accent-ring: rgba(42, 91, 215, .3);
+  --accent-text: #2350bf;
+
+  --good: #117a48;
+  --good-soft: rgba(17, 122, 72, .1);
+  --warn: #a35208;
+  --warn-soft: rgba(217, 119, 6, .12);
+  --bad: #c0302a;
+  --bad-soft: rgba(192, 48, 42, .09);
+  --info: #1c63c2;
+  --info-soft: rgba(28, 99, 194, .1);
+
+  /* categorical icon colours (recording, photo, files, documents) */
+  --c-rec: #d4442e;
+  --c-photo: #0c7f8f;
+  --c-type: var(--accent);
+  --c-file: #5b6b86;
+  --c-pdf: #d4442e;
+
+  /* the navigation rail stays dark in both themes */
+  --rail-bg: #0c1322;
+  --rail-text: #aab4c7;
+  --rail-text-strong: #f3f5fa;
+  --rail-muted: rgba(255, 255, 255, .38);
+  --rail-line: rgba(255, 255, 255, .08);
+  --rail-hover: rgba(255, 255, 255, .06);
+  --rail-active: rgba(255, 255, 255, .1);
+  --rail-accent: #7ea6ff;
+
+  /* depth */
+  --sh-1: 0 1px 2px rgba(15, 23, 40, .05);
+  --sh-2: 0 1px 3px rgba(15, 23, 40, .07), 0 1px 2px rgba(15, 23, 40, .04);
+  --sh-3: 0 10px 28px -8px rgba(15, 23, 40, .16), 0 2px 6px rgba(15, 23, 40, .05);
+  --sh-pop: 0 24px 64px -16px rgba(15, 23, 40, .34), 0 4px 12px rgba(15, 23, 40, .08);
+
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --bg: #0a0f1b;
+  --surface: #111a2c;
+  --surface-2: #172138;
+  --surface-3: #1f2b45;
+  --text: #e8ecf5;
+  --text-2: #a3aec5;
+  --text-3: #7c88a2;
+  --line: #212c46;
+  --line-strong: #34425f;
+  --hover: rgba(255, 255, 255, .06);
+  --press: rgba(255, 255, 255, .1);
+  --overlay: rgba(0, 0, 0, .62);
+
+  --accent: #7ea6ff;
+  --accent-hover: #9bbaff;
+  --accent-press: #b4cbff;
+  --accent-contrast: #08132e;
+  --accent-soft: rgba(126, 166, 255, .14);
+  --accent-softer: rgba(126, 166, 255, .07);
+  --accent-ring: rgba(126, 166, 255, .38);
+  --accent-text: #9bbaff;
+
+  --good: #4cc58a;
+  --good-soft: rgba(76, 197, 138, .14);
+  --warn: #f0a63a;
+  --warn-soft: rgba(240, 166, 58, .14);
+  --bad: #ff7b78;
+  --bad-soft: rgba(255, 123, 120, .13);
+  --info: #79a9ff;
+  --info-soft: rgba(121, 169, 255, .14);
+
+  --c-rec: #ff7a64;
+  --c-photo: #4cc3d4;
+  --c-file: #9aa8c4;
+  --c-pdf: #ff7a64;
+
+  --rail-bg: #070b14;
+
+  --sh-1: 0 1px 2px rgba(0, 0, 0, .35);
+  --sh-2: 0 1px 3px rgba(0, 0, 0, .4), 0 1px 2px rgba(0, 0, 0, .3);
+  --sh-3: 0 12px 30px -8px rgba(0, 0, 0, .6), 0 2px 6px rgba(0, 0, 0, .3);
+  --sh-pop: 0 28px 70px -16px rgba(0, 0, 0, .75), 0 4px 12px rgba(0, 0, 0, .4);
+
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="system"] {
+    --bg: #0a0f1b;
+    --surface: #111a2c;
+    --surface-2: #172138;
+    --surface-3: #1f2b45;
+    --text: #e8ecf5;
+    --text-2: #a3aec5;
+    --text-3: #7c88a2;
+    --line: #212c46;
+    --line-strong: #34425f;
+    --hover: rgba(255, 255, 255, .06);
+    --press: rgba(255, 255, 255, .1);
+    --overlay: rgba(0, 0, 0, .62);
+    --accent: #7ea6ff;
+    --accent-hover: #9bbaff;
+    --accent-press: #b4cbff;
+    --accent-contrast: #08132e;
+    --accent-soft: rgba(126, 166, 255, .14);
+    --accent-softer: rgba(126, 166, 255, .07);
+    --accent-ring: rgba(126, 166, 255, .38);
+    --accent-text: #9bbaff;
+    --good: #4cc58a;
+    --good-soft: rgba(76, 197, 138, .14);
+    --warn: #f0a63a;
+    --warn-soft: rgba(240, 166, 58, .14);
+    --bad: #ff7b78;
+    --bad-soft: rgba(255, 123, 120, .13);
+    --info: #79a9ff;
+    --info-soft: rgba(121, 169, 255, .14);
+    --c-rec: #ff7a64;
+    --c-photo: #4cc3d4;
+    --c-file: #9aa8c4;
+    --c-pdf: #ff7a64;
+    --rail-bg: #070b14;
+    --sh-1: 0 1px 2px rgba(0, 0, 0, .35);
+    --sh-2: 0 1px 3px rgba(0, 0, 0, .4), 0 1px 2px rgba(0, 0, 0, .3);
+    --sh-3: 0 12px 30px -8px rgba(0, 0, 0, .6), 0 2px 6px rgba(0, 0, 0, .3);
+    --sh-pop: 0 28px 70px -16px rgba(0, 0, 0, .75), 0 4px 12px rgba(0, 0, 0, .4);
+    color-scheme: dark;
+  }
+}
+
+/* a touch screen gets larger targets everywhere, from the same tokens */
+@media (pointer: coarse) {
+  :root { --h-sm: 38px; --h-md: 44px; --h-lg: 50px; }
+}

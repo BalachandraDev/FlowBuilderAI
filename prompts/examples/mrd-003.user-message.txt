@@ -1,0 +1,12 @@
+<analysis_request type="part" prompt="part-analysis.v1">
+<context>
+<department>MRD</department>
+<module_code>MRD</module_code>
+<flow_name>IP Case Sheet Receive in Department</flow_name>
+<next_requirement_number>1</next_requirement_number>
+</context>
+<entries>
+<entry ref="E1" kind="voice_transcript" language="en-IN" interviewee_role="MRD user" captured_on="2025-03-17">In MRD, when the case sheet comes to the department, the user opens IP case sheet receive menu, selects department or ward from dropdown. If he is a super user, his own ward should already come selected, but he can change it. Others choose manually. Then he selects the patients and receives.</entry>
+<entry ref="E2" kind="text" language="en" interviewee_role="Implementation Lead" captured_on="2025-03-17">This is a change to existing behaviour. Priority is High. All MRD users use this menu frequently.</entry>
+</entries>
+</analysis_request>

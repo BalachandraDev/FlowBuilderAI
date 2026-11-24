@@ -1,0 +1,12 @@
+<Project>
+  <PropertyGroup>
+    <!-- Single place to change the target framework. Design target is .NET 10 LTS; built on 9.0 until that SDK is installed. -->
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <Deterministic>true</Deterministic>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+</Project>

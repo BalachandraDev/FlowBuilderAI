@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <ItemGroup>
+    <ProjectReference Include="..\FlowCapture.Infrastructure\FlowCapture.Infrastructure.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.*" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.9.0" />
+    <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
+    <PackageReference Include="Hangfire.AspNetCore" Version="1.8.*" />
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="9.0.*" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.*">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+  <!--
+    The web app (the ../../web folder) is built into wwwroot and served by this API. The first build on a machine builds it, if Node.js is installed;
+    later builds leave it alone (run "npm run build" in the web folder after changing the web app). Skip with -p:SkipWebBuild=true.
+  -->
+  <Target Name="BuildWebApp" BeforeTargets="BeforeBuild" Condition="'$(SkipWebBuild)' != 'true' And !Exists('$(MSBuildProjectDirectory)\wwwroot\index.html') And Exists('$(MSBuildProjectDirectory)\..\..\web\package.json')">
+    <Message Importance="high" Text="Building the web app (first build only)..." />
+    <Exec Command="npm install --no-audit --no-fund" WorkingDirectory="$(MSBuildProjectDirectory)\..\..\web" ContinueOnError="true" />
+    <Exec Command="npm run build" WorkingDirectory="$(MSBuildProjectDirectory)\..\..\web" ContinueOnError="true" />
+    <Warning Condition="!Exists('$(MSBuildProjectDirectory)\wwwroot\index.html')" Text="The web app could not be built, so the API will not serve it. Install Node.js (nodejs.org), then run: npm install; npm run build  in the web folder." />
+  </Target>
+
+  <!-- The Word template (if present) is copied next to the app and stored as the first active template on first start. -->
+  <ItemGroup>
+    <Content Include="..\..\templates\**\*.docx" Link="templates\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <!-- templates/logo.png (the company logo for the cover of the implementation document) is copied when it exists -->
+    <Content Include="..\..\templates\logo.png" Link="templates\logo.png" CopyToOutputDirectory="PreserveNewest" Condition="Exists('..\..\templates\logo.png')" />
+  </ItemGroup>
+  <!-- AI prompt pack is copied next to the app; PromptSeeder upserts it into the PromptTemplate table. -->
+  <ItemGroup>
+    <Content Include="..\..\prompts\**\*" Link="prompts\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" Exclude="..\..\prompts\README.md" />
+  </ItemGroup>
+</Project>

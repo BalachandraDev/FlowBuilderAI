@@ -1,0 +1,354 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:flowcapture:schema:flow:1.0",
+  "title": "FlowCapture structured flow v1",
+  "description": "Structured result of analysing captured input for ONE department flow (one RGD). Unknown scalar values are the literal string 'To be confirmed'; unknown lists are empty arrays. sourceEntryIds cite input refs: E# = capture entry, A# = user answer to a clarification question.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "flowTitle", "department", "moduleCode", "purpose", "scope",
+    "actors", "trigger", "preConditions", "postConditions", "steps", "decisions",
+    "alternateFlows", "exceptionFlows", "businessRules", "validations", "dataEntities",
+    "screens", "reportsAndPrints", "integrations", "requirements", "acceptanceCriteria",
+    "userRoles", "nonFunctionalNotes", "useCase", "gaps", "clarificationQuestions",
+    "confidence", "changeLog", "mermaid"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "flowTitle": { "$ref": "#/$defs/text" },
+    "department": { "$ref": "#/$defs/text" },
+    "moduleCode": { "$ref": "#/$defs/text" },
+    "purpose": { "$ref": "#/$defs/text" },
+    "scope": { "$ref": "#/$defs/text" },
+    "actors": { "type": "array", "items": { "$ref": "#/$defs/actor" } },
+    "trigger": { "$ref": "#/$defs/text" },
+    "preConditions": { "type": "array", "items": { "$ref": "#/$defs/textItem" } },
+    "postConditions": { "type": "array", "items": { "$ref": "#/$defs/textItem" } },
+    "steps": { "type": "array", "items": { "$ref": "#/$defs/step" } },
+    "decisions": { "type": "array", "items": { "$ref": "#/$defs/decision" } },
+    "alternateFlows": { "type": "array", "items": { "$ref": "#/$defs/alternateFlow" } },
+    "exceptionFlows": { "type": "array", "items": { "$ref": "#/$defs/exceptionFlow" } },
+    "businessRules": { "type": "array", "items": { "$ref": "#/$defs/businessRule" } },
+    "validations": { "type": "array", "items": { "$ref": "#/$defs/validation" } },
+    "dataEntities": { "type": "array", "items": { "$ref": "#/$defs/dataEntity" } },
+    "screens": { "type": "array", "items": { "$ref": "#/$defs/screen" } },
+    "reportsAndPrints": { "type": "array", "items": { "$ref": "#/$defs/reportOrPrint" } },
+    "integrations": { "type": "array", "items": { "$ref": "#/$defs/integration" } },
+    "requirements": { "type": "array", "items": { "$ref": "#/$defs/requirement" } },
+    "acceptanceCriteria": { "type": "array", "items": { "$ref": "#/$defs/acceptanceCriterion" } },
+    "userRoles": { "type": "array", "items": { "$ref": "#/$defs/userRole" } },
+    "nonFunctionalNotes": { "type": "array", "items": { "$ref": "#/$defs/nonFunctionalNote" } },
+    "useCase": { "$ref": "#/$defs/useCase" },
+    "gaps": { "type": "array", "items": { "$ref": "#/$defs/gap" } },
+    "clarificationQuestions": { "type": "array", "items": { "$ref": "#/$defs/clarificationQuestion" } },
+    "confidence": { "$ref": "#/$defs/confidence" },
+    "changeLog": {
+      "description": "Empty on the first analysis. On re-analysis, one row per item added, modified or removed relative to the previous result.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/changeLogEntry" }
+    },
+    "mermaid": {
+      "description": "Write exactly 'flowchart TD'. The server draws the diagram itself from the steps and decisions, so nothing else is needed here.",
+      "type": "string",
+      "minLength": 10
+    }
+  },
+
+  "$defs": {
+    "text": {
+      "description": "Non-empty text. Use exactly 'To be confirmed' when the input does not say.",
+      "type": "string",
+      "minLength": 1
+    },
+    "id": { "type": "string", "pattern": "^[A-Z]{1,5}[0-9]{1,4}$" },
+    "nodeRef": {
+      "description": "Id of a step (S#) or decision (D#), or the literal END.",
+      "type": "string",
+      "pattern": "^(S[0-9]{1,4}|D[0-9]{1,4}|END)$"
+    },
+    "sourceRefs": {
+      "description": "Input refs that support this item (E# entries, A# answers). May be empty only for items added by the user, never for items the AI creates.",
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[EA][0-9]{1,4}$" },
+      "uniqueItems": true
+    },
+    "tbcEnumYesNo": { "enum": ["Yes", "No", "To be confirmed"] },
+    "priority": { "enum": ["High", "Medium", "Low", "To be confirmed"] },
+    "section": {
+      "enum": [
+        "header", "purposeAndScope", "actors", "trigger", "conditions", "steps", "decisions",
+        "alternateFlows", "exceptionFlows", "businessRules", "validations", "dataEntities",
+        "screens", "reportsAndPrints", "integrations", "requirements", "userRoles",
+        "acceptanceCriteria", "nonFunctional", "general"
+      ]
+    },
+
+    "actor": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "role", "department", "sourceEntryIds"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "role": { "$ref": "#/$defs/text" },
+        "department": { "$ref": "#/$defs/text" },
+        "sourceEntryIds": { "$ref": "#/$defs/sourceRefs" }
+      }
+    },
+    "textItem": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "text", "sourceEntryIds"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "text": { "$ref": "#/$defs/text" },
+        "sourceEntryIds": { "$ref": "#/$defs/sourceRefs" }
+      }
+    },
+    "step": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "actor", "action", "screen", "inputs", "outputs", "next", "sourceEntryIds"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^S[0-9]{1,4}$" },
+        "actor": { "$ref": "#/$defs/text" },
+        "action": { "$ref": "#/$defs/text" },
+        "screen": { "description": "System screen/menu if mentioned, else 'Not applicable' or 'To be confirmed'.", "$ref": "#/$defs/text" },
+        "inputs": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "outputs": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "next": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/nodeRef" } },
+        "sourceEntryIds": { "$ref": "#/$defs/sourceRefs" }
+      }
+    },
+    "decisionPath": {
+      "type": "object", "additionalProperties": false,
+      "required": ["summary", "next"],
+      "properties": {
+        "summary": { "$ref": "#/$defs/text" },
+        "next": { "$ref": "#/$defs/nodeRef" }
+      }
+    },
+    "decision": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "condition", "yesPath", "noPath", "sourceEntryIds"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^D[0-9]{1,4}$" },
+        "condition": { "$ref": "#/$defs/text" },
+        "yesPath": { "$ref": "#/$defs/decisionPath" },
+        "noPath": { "$ref": "#/$defs/decisionPath" },
+        "sourceEntryIds": { "$ref": "#/$defs/sourceRefs" }
+      }
+    },
+    "alternateFlow": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "name", "condition", "branchFrom", "steps", "rejoinAt", "sourceEntryIds"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^ALT[0-9]{1,3}$" },
+        "name": { "$ref": "#/$defs/text" },
+        "condition": { "$ref": "#/$defs/text" },
+        "branchFrom": { "$ref": "#/$defs/nodeRef" },
+        "steps": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "rejoinAt": { "$ref": "#/$defs/nodeRef" },
+        "sourceEntryIds": { "$ref": "#/$defs/sourceRefs" }
+      }
+    },
+    "exceptionFlow": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "name", "condition", "handling", "outcome", "sourceEntryIds"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^EXC[0-9]{1,3}$" },
+        "name": { "$ref": "#/$defs/text" },
+        "condition": { "$ref": "#/$defs/text" },
+        "handling": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "outcome": { "$ref": "#/$defs/text" },
+        "sourceEntryIds": { "$ref": "#/$defs/sourceRefs" }
+      }
+    },
+    "businessRule": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "rule", "appliesTo", "sourceEntryIds"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^BR[0-9]{1,3}$" },
+        "rule": { "$ref": "#/$defs/text" },
+        "appliesTo": { "description": "Ids of steps/decisions/alternate flows the rule governs. May be empty.", "type": "array", "items": { "$ref": "#/$defs/id" } },
+        "sourceEntryIds": { "$ref": "#/$defs/sourceRefs" }
+      }
+    },
+    "validation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "field", "rule", "errorMessage", "sourceEntryIds"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^VAL[0-9]{1,3}$" },
+        "field": { "$ref": "#/$defs/text" },
+        "rule": { "$ref": "#/$defs/text" },
+        "errorMessage": { "$ref": "#/$defs/text" },
+        "sourceEntryIds": { "$ref": "#/$defs/sourceRefs" }
+      }
+    },
+    "dataField": {
+      "type": "object", "additionalProperties": false,
+      "required": ["name", "type", "mandatory", "source"],
+      "properties": {
+        "name": { "$ref": "#/$defs/text" },
+        "type": { "$ref": "#/$defs/text" },
+        "mandatory": { "$ref": "#/$defs/tbcEnumYesNo" },
+        "source": { "description": "Master/table/screen the value comes from, else 'To be confirmed'.", "$ref": "#/$defs/text" }
+      }
+    },
+    "dataEntity": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "name", "fields", "suggestedChange", "sourceEntryIds"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^DE[0-9]{1,3}$" },
+        "name": { "$ref": "#/$defs/text" },
+        "fields": { "type": "array", "items": { "$ref": "#/$defs/dataField" } },
+        "suggestedChange": { "description": "Table/column change implied by the input, else 'To be confirmed'. Never invent schema.", "$ref": "#/$defs/text" },
+        "sourceEntryIds": { "$ref": "#/$defs/sourceRefs" }
+      }
+    },
+    "screenField": {
+      "type": "object", "additionalProperties": false,
+      "required": ["name", "type", "mandatory", "defaultValue", "source"],
+      "properties": {
+        "name": { "$ref": "#/$defs/text" },
+        "type": { "$ref": "#/$defs/text" },
+        "mandatory": { "$ref": "#/$defs/tbcEnumYesNo" },
+        "defaultValue": { "$ref": "#/$defs/text" },
+        "source": { "$ref": "#/$defs/text" }
+      }
+    },
+    "screen": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "menuName", "fields", "sourceEntryIds"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^SC[0-9]{1,3}$" },
+        "menuName": { "$ref": "#/$defs/text" },
+        "fields": { "type": "array", "items": { "$ref": "#/$defs/screenField" } },
+        "sourceEntryIds": { "$ref": "#/$defs/sourceRefs" }
+      }
+    },
+    "reportOrPrint": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "name", "kind", "description", "sourceEntryIds"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^RP[0-9]{1,3}$" },
+        "name": { "$ref": "#/$defs/text" },
+        "kind": { "enum": ["Report", "Print", "Export", "To be confirmed"] },
+        "description": { "$ref": "#/$defs/text" },
+        "sourceEntryIds": { "$ref": "#/$defs/sourceRefs" }
+      }
+    },
+    "integration": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "system", "direction", "description", "sourceEntryIds"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^INT[0-9]{1,3}$" },
+        "system": { "description": "Other BACKBONE module or external system.", "$ref": "#/$defs/text" },
+        "direction": { "enum": ["Inbound", "Outbound", "Both", "To be confirmed"] },
+        "description": { "$ref": "#/$defs/text" },
+        "sourceEntryIds": { "$ref": "#/$defs/sourceRefs" }
+      }
+    },
+    "requirement": {
+      "type": "object", "additionalProperties": false,
+      "required": ["reqId", "description", "category", "priority", "sourceEntryIds"],
+      "properties": {
+        "reqId": { "type": "string", "pattern": "^REQ[0-9]{3,4}$" },
+        "description": { "$ref": "#/$defs/text" },
+        "category": {
+          "description": "Admin-configurable. The server replaces this enum at runtime with the active category codes (default CR, NR, ER) plus 'To be confirmed'.",
+          "enum": ["CR", "NR", "ER", "To be confirmed"]
+        },
+        "priority": { "$ref": "#/$defs/priority" },
+        "sourceEntryIds": { "$ref": "#/$defs/sourceRefs" }
+      }
+    },
+    "acceptanceCriterion": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "reqId", "given", "when", "then", "sourceEntryIds"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^AC[0-9]{1,3}$" },
+        "reqId": { "type": "string", "pattern": "^REQ[0-9]{3,4}$" },
+        "given": { "$ref": "#/$defs/text" },
+        "when": { "$ref": "#/$defs/text" },
+        "then": { "$ref": "#/$defs/text" },
+        "sourceEntryIds": { "$ref": "#/$defs/sourceRefs" }
+      }
+    },
+    "userRole": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "userRole", "frequency", "module", "menuName", "sourceEntryIds"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^UR[0-9]{1,3}$" },
+        "userRole": { "$ref": "#/$defs/text" },
+        "frequency": { "enum": ["Frequent", "Occasional", "Rare", "To be confirmed"] },
+        "module": { "$ref": "#/$defs/text" },
+        "menuName": { "$ref": "#/$defs/text" },
+        "sourceEntryIds": { "$ref": "#/$defs/sourceRefs" }
+      }
+    },
+    "nonFunctionalNote": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "category", "note", "sourceEntryIds"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^NF[0-9]{1,3}$" },
+        "category": { "enum": ["Performance", "Audit", "AccessRights", "Usability", "Other"] },
+        "note": { "$ref": "#/$defs/text" },
+        "sourceEntryIds": { "$ref": "#/$defs/sourceRefs" }
+      }
+    },
+    "useCase": {
+      "type": "object", "additionalProperties": false,
+      "required": ["primaryActors", "priority", "mainScenario"],
+      "properties": {
+        "primaryActors": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "priority": { "$ref": "#/$defs/priority" },
+        "mainScenario": { "$ref": "#/$defs/text" }
+      }
+    },
+    "gap": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "section", "description"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^G[0-9]{1,3}$" },
+        "section": { "$ref": "#/$defs/section" },
+        "description": { "$ref": "#/$defs/text" }
+      }
+    },
+    "clarificationQuestion": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "section", "question"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^Q[0-9]{1,3}$" },
+        "section": { "$ref": "#/$defs/section" },
+        "question": { "$ref": "#/$defs/text" },
+        "relatedGapId": { "type": "string", "pattern": "^G[0-9]{1,3}$" },
+        "options": { "description": "Optional multiple-choice answers the user can tap.", "type": "array", "items": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "confidence": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "purposeAndScope", "actors", "steps", "decisions", "alternateAndExceptionFlows",
+        "businessRulesAndValidations", "dataAndScreens", "reportsAndIntegrations", "requirements"
+      ],
+      "properties": {
+        "purposeAndScope": { "$ref": "#/$defs/score" },
+        "actors": { "$ref": "#/$defs/score" },
+        "steps": { "$ref": "#/$defs/score" },
+        "decisions": { "$ref": "#/$defs/score" },
+        "alternateAndExceptionFlows": { "$ref": "#/$defs/score" },
+        "businessRulesAndValidations": { "$ref": "#/$defs/score" },
+        "dataAndScreens": { "$ref": "#/$defs/score" },
+        "reportsAndIntegrations": { "$ref": "#/$defs/score" },
+        "requirements": { "$ref": "#/$defs/score" }
+      }
+    },
+    "score": { "type": "number", "minimum": 0, "maximum": 1 },
+    "changeLogEntry": {
+      "type": "object", "additionalProperties": false,
+      "required": ["itemId", "change", "summary"],
+      "properties": {
+        "itemId": { "type": "string", "minLength": 1 },
+        "change": { "enum": ["Added", "Modified", "Removed"] },
+        "summary": { "$ref": "#/$defs/text" }
+      }
+    }
+  }
+}

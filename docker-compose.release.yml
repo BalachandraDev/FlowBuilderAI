@@ -1,0 +1,57 @@
+# Run the PUBLISHED image (nothing is built on your machine): SQL Server + FlowBuilderAI (the API and the web app, one address).
+#   1. copy .env.example to .env and fill it in (SQL_SA_PASSWORD and JWT_SIGNING_KEY are required)
+#   2. docker compose -f docker-compose.release.yml up -d
+#   3. open http://localhost:8080
+# FLOWCAPTURE_IMAGE (in .env) picks another image or version, for example ghcr.io/balachandradev/flowbuilderai:1.0.0
+# If the package is private, sign in first:  docker login ghcr.io -u BalachandraDev  (a token with read:packages as the password)
+# The settings are the same as in docker-compose.yml; see .env.example for each one.
+
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${SQL_SA_PASSWORD:?set SQL_SA_PASSWORD in .env}
+    volumes:
+      - sqldata:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q \"SELECT 1\" || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  api:
+    image: ${FLOWCAPTURE_IMAGE:-ghcr.io/balachandradev/flowbuilderai:latest}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${API_PORT:-8080}:8080"
+    environment:
+      ConnectionStrings__Default: "Server=db;Database=FlowCapture;User Id=sa;Password=${SQL_SA_PASSWORD};TrustServerCertificate=True"
+      Security__JwtSigningKey: ${JWT_SIGNING_KEY:?set JWT_SIGNING_KEY in .env (32+ random characters)}
+      Gemini__ApiKey: ${GEMINI_API_KEY:-}
+      Anthropic__ApiKey: ${ANTHROPIC_API_KEY:-}
+      Seed__AdminEmail: ${ADMIN_EMAIL:-}
+      Seed__AdminPassword: ${ADMIN_PASSWORD:-}
+      Stt__Provider: ${STT_PROVIDER:-None}
+      Stt__Region: ${STT_REGION:-}
+      Stt__Key: ${STT_KEY:-}
+      # TLS ends at the proxy in front of this container; remove these lines when the API itself is reached over HTTPS.
+      Https__Redirect: "false"
+      ForwardedHeaders__Enabled: "true"
+      ForwardedHeaders__TrustAllProxies: "true"
+    volumes:
+      - blobs:/data
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /health/live HTTP/1.0\\r\\n\\r\\n' >&3 && head -n1 <&3 | grep -q 200"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+volumes:
+  sqldata:
+  blobs:

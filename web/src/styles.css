@@ -1,0 +1,13 @@
+/*
+  FlowCapture styles, in the order they build on each other:
+    tokens      every colour, size, radius, shadow and speed (light and dark themes)
+    base        reset, type, links, focus, scrollbars
+    layout      the shell (navigation rail, top bar, tab bar), page headers, grids
+    components  buttons, forms, badges, alerts, cards, tables, tabs, dialogs, toasts, loading and empty states
+    pages       what belongs to one screen only
+*/
+@import "./styles/tokens.css";
+@import "./styles/base.css";
+@import "./styles/layout.css";
+@import "./styles/components.css";
+@import "./styles/pages.css";

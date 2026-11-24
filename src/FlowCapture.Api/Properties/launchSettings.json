@@ -1,0 +1,13 @@
+{
+  "profiles": {
+    "FlowCapture.Api": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "launchUrl": "swagger",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "http://localhost:5199;https://localhost:51291"
+    }
+  }
+}

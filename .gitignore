@@ -1,0 +1,27 @@
+bin/
+obj/
+.vs/
+*.user
+App_Data/
+*.log
+TestResults/
+appsettings.Local.json
+.env
+
+# built web app (npm run build in web/ writes it here)
+src/FlowCapture.Api/wwwroot/
+web/node_modules/
+web/test-results/
+web/playwright-report/
+
+# never publish: real database backups, local tool settings, test output, secrets
+.db-backups/
+.claude/
+.test-artifacts/
+*.bak
+*.slnLaunch.user
+.env.*
+!.env.example
+
+# cancelled Blazor/MAUI code, kept locally only
+archive/
