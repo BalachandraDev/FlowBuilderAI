@@ -174,7 +174,8 @@ public class TemplateAndWordTests
 public class DiagramRenderingTests
 {
     private static ChromiumDiagramRenderer Renderer() =>
-        new(Options.Create(new DiagramOptions()), NullLogger<ChromiumDiagramRenderer>.Instance);
+        // on a CI runner (GitHub Actions) Chrome refuses to start its sandbox, so it is switched off there only
+        new(Options.Create(new DiagramOptions { NoSandbox = Environment.GetEnvironmentVariable("CI") == "true" }), NullLogger<ChromiumDiagramRenderer>.Instance);
 
     [RequiresBrowserFact]
     public async Task A_flow_is_drawn_as_a_valid_standalone_svg_and_a_sharp_png()
