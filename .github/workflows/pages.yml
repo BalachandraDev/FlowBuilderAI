@@ -44,5 +44,8 @@ jobs:
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
+      # the list of a run's artifacts can lag a moment behind the upload; deploying at once then finds "0 artifacts"
+      - name: Let the uploaded artifact become visible
+        run: sleep 20
       - id: deployment
         uses: actions/deploy-pages@v4

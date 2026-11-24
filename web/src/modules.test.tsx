@@ -37,7 +37,7 @@ describe('the administrator’s Modules page', () => {
     signedIn(); mockApi(routes()); app('/admin/modules')
     expect(await screen.findByRole('heading', { name: 'Modules' })).toBeInTheDocument()
     expect(within(screen.getByRole('navigation', { name: 'Main' })).getByRole('link', { name: /Modules/ })).toHaveAttribute('href', '/admin/modules')
-    const rows = within(await screen.findByRole('list', { name: 'Modules' })).getAllByRole('listitem')
+    const rows = await within(await screen.findByRole('list', { name: 'Modules' })).findAllByRole('listitem')     // the list is there before its rows have loaded
     expect(rows.map(r => r.querySelector('.urow-main b')?.textContent)).toEqual(['MRD', 'Old store', 'Pharmacy'])
     expect(within(rows[1]).getByText('Stopped')).toBeInTheDocument()
     expect(within(rows[2]).getByText('Code PHARMACY')).toBeInTheDocument()
