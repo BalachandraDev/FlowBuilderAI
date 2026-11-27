@@ -107,7 +107,8 @@ public sealed class GuideGenerationService(
             version.VersionNo, content, plan, png, open, demo, LoadLogo(), svg, AiWritten: aiWording, Diagram: drawing, History: history)
         { RequestCode = flow.RequestNo > 0 ? $"{flow.Kind}-{flow.RequestNo:000}" : null, Figures = await figures.ForDocumentAsync(flow.Id, ct),
             Sections = string.IsNullOrWhiteSpace(job.SectionsJson) ? null : GuideSections.Parse(JsonSerializer.Deserialize<string[]>(job.SectionsJson)),      // only what the person chose
-            SectionTitles = GuideSections.ReadTitles(job.TitlesJson) });                                                                                      // under the headings they chose to call them
+            SectionTitles = GuideSections.ReadTitles(job.TitlesJson),                                                                                         // under the headings they chose to call them
+            SectionTexts = GuideSections.TextsOf(GuideSections.ReadTexts(job.TextsJson), null) });                                                            // with the text they wrote instead of the generated text
         var bytes = await pdf.RenderAsync(html, ct);
         log.LogInformation("Guide job {JobId}: diagram {DiagramMs} ms, whole document {TotalMs} ms, AI wording {AiWording}", job.Id, drawn, started.ElapsedMilliseconds, aiWording);
 

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowCounterClockwise, Eye, PencilSimple } from '@phosphor-icons/react'
+import { ArrowCounterClockwise, Eye, NotePencil, PencilSimple } from '@phosphor-icons/react'
 import { useQuery } from '@tanstack/react-query'
 import { describeError, get } from '../api/client'
 import type { GuideChoice, GuideOutline } from '../api/types'
@@ -14,12 +14,53 @@ const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;')
 /** Spaces and line breaks tidied, as the server does. */
 const tidy = (s: string) => s.replace(/\s+/g, ' ').trim()
 
+/** The longest text a section can have: the server refuses more. */
+export const MAX_TEXT = 8000
+/** The headings whose text can be written by the person: the ones that are written text, lists and tables (the server checks the same). */
+export const TEXT_EDITABLE: ReadonlySet<string> = new Set(['purpose', 'scope', 'requirements', 'roles', 'usecase', 'stages', 'touchpoints', 'open'])
+/** Written text tidied as the server does: one line per paragraph, spaces collapsed, empty lines gone. A line that starts with "- " is a bullet. */
+export const cleanText = (s: string) => s.replace(/\r\n?/g, '\n').split('\n').map(l => l.replace(/[ \t]+/g, ' ').trim()).filter(Boolean).join('\n')
+
+/**
+ * The words of a section as one line each, to start writing from: a paragraph is a line, a list item is "- item", a table row is its cells joined with a dash.
+ * Pictures, the heading and the section number are left out. The person's version replaces the section's text, so lists and tables become plain lines.
+ */
+export function plainTextOf(html: string): string {
+  const doc = new DOMParser().parseFromString(html.split(NUMBER).join('').replace(/<br\s*\/?>/gi, ' '), 'text/html')
+  const lines: string[] = []
+  const text = (el: Element) => tidy(el.textContent ?? '')
+  const walk = (el: Element) => {
+    const tag = el.tagName.toUpperCase()
+    if (['H2', 'IMG', 'SVG', 'STYLE', 'SCRIPT'].includes(tag)) return
+    if (tag === 'LI') { const t = text(el); if (t) lines.push('- ' + t); return }
+    if (tag === 'TR') { const cells = [...el.children].map(text).filter(Boolean); if (cells.length) lines.push(cells.join(' – ')); return }
+    if (tag === 'P' || tag === 'FIGCAPTION' || /^H[3-6]$/.test(tag)) { const t = text(el); if (t) lines.push(t); return }
+    for (const child of el.childNodes) {
+      if (child.nodeType === 1) walk(child as Element)
+      else if (child.nodeType === 3) { const t = tidy(child.textContent ?? ''); if (t) lines.push(t) }
+    }
+  }
+  walk(doc.body)
+  return cleanText(lines.join('\n'))
+}
+
+/** A section made from the person's own lines, as the server writes it for the PDF: the heading, a paragraph for each line, a list for the lines that start with "- ". */
+export function textSection(title: string, text: string): string {
+  let html = `<section><h2><span>${NUMBER}</span>${escapeHtml(title)}</h2>`
+  let list = false
+  for (const line of cleanText(text).split('\n').filter(Boolean)) {
+    if (line.startsWith('- ')) { if (!list) { html += '<ul>'; list = true } html += `<li>${escapeHtml(line.slice(2))}</li>` }
+    else { if (list) { html += '</ul>'; list = false } html += `<p>${escapeHtml(line)}</p>` }
+  }
+  return html + (list ? '</ul>' : '') + '</section>'
+}
+
 /**
  * The document as it would be printed with the ticked headings and requests: the server's own page markup for each section (the very markup the PDF is
  * made from), numbered 1, 2, 3 without gaps, in the document's own style. A request's own document starts with its cover; a project or module PDF
  * shows each ticked request as a chapter. The page is shown in a frame that cannot run scripts.
  */
-export function composePreview(outline: GuideOutline, sections: Set<string>, requests: Set<string>, titles: Record<string, string> = {}): string {
+export function composePreview(outline: GuideOutline, sections: Set<string>, requests: Set<string>, titles: Record<string, string> = {}, texts: Record<string, string> = {}): string {
   const ticked = outline.sections.filter(s => sections.has(s.key))
   /** A section as printed: a heading the person renamed is written as each section writes it, </span>Heading</h2> (the same swap the server makes for the PDF). */
   const named = (s: { key: string; title: string }, html: string) => {
@@ -31,7 +72,9 @@ export function composePreview(outline: GuideOutline, sections: Set<string>, req
     let n = 0
     return ticked.map(s => {
       const part = flowId === undefined ? s.parts[0] : s.parts.find(p => p.flowId === flowId)
-      return part ? `<div id="sec-${s.key}-${flowId ?? 'one'}">${named(s, part.html).split(NUMBER).join(String(++n))}</div>` : ''
+      // text the person wrote replaces the generated text (the key names the request in a project or module PDF, as the server's does)
+      const written = TEXT_EDITABLE.has(s.key) ? cleanText(texts[flowId === undefined ? s.key : `${flowId}/${s.key}`] ?? '') : ''
+      return part ? `<div id="sec-${s.key}-${flowId ?? 'one'}">${named(s, written ? textSection(s.title, written) : part.html).split(NUMBER).join(String(++n))}</div>` : ''
     }).join('')
   }
   let body: string
@@ -68,6 +111,11 @@ export function ChooseContent({ title, outlinePath, confirmLabel, onChoose, onCl
   const [titles, setTitles] = usePref<Record<string, string>>(`guide-titles.${outlinePath}`, {})
   const [renaming, setRenaming] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
+  /** The text this person wrote under headings, remembered for this document. `base` is the generated text it was written over: if the notes change and the generated text is no longer that, the old edit is not used. */
+  const [written, setWritten] = usePref<Record<string, { text: string; base: string }>>(`guide-texts.${outlinePath}`, {})
+  /** The heading whose text is being written and which request's text it is (a project or module PDF has the text of each request). */
+  const [writing, setWriting] = useState<{ key: string; ref: string } | null>(null)
+  const [textDraft, setTextDraft] = useState('')
 
   // everything is ticked to begin with
   useEffect(() => {
@@ -88,7 +136,36 @@ export function ChooseContent({ title, outlinePath, confirmLabel, onChoose, onCl
     for (const s of data?.sections ?? []) { const t = tidy(titles[s.key] ?? ''); if (t && t !== s.title) out[s.key] = t }
     return out
   }, [data, titles])
-  const page = useMemo(() => (data ? composePreview(data, sections, requests, renamed) : ''), [data, sections, requests, renamed])
+  /** A request's own document has plain heading keys; a project or module PDF names the request in front, as the server's keys do. */
+  const own = (data?.requests.length ?? 0) === 0
+  const refOf = (key: string, flowId: string) => (own ? key : `${flowId}/${key}`)
+  /** The generated text of every heading of every request, as lines to start from. */
+  const generated = useMemo(() => {
+    const out: Record<string, string> = {}
+    for (const s of data?.sections ?? []) if (TEXT_EDITABLE.has(s.key)) for (const p of s.parts) out[(data!.requests.length === 0 ? s.key : `${p.flowId}/${s.key}`)] = plainTextOf(p.html)
+    return out
+  }, [data])
+  /** Only the text that really differs from the generated text, and was written over the generated text as it is now (an edit of text that has since changed is not used). */
+  const texts = useMemo(() => {
+    const used: Record<string, string> = {}; let outdated = 0
+    for (const [ref, w] of Object.entries(written)) {
+      if (!(ref in generated)) continue
+      const text = cleanText(w.text)
+      if (cleanText(w.base) !== generated[ref]) { outdated++; continue }
+      if (text && text !== generated[ref]) used[ref] = text
+    }
+    return { used, outdated }
+  }, [written, generated])
+  const page = useMemo(() => (data ? composePreview(data, sections, requests, renamed, texts.used) : ''), [data, sections, requests, renamed, texts.used])
+
+  function startWriting(key: string, ref: string) { setWriting({ key, ref }); setTextDraft(texts.used[ref] ?? generated[ref] ?? ''); setRenaming(null) }
+  function saveWriting() {
+    if (!writing) return
+    const t = cleanText(textDraft)
+    setWritten(prev => { const next = { ...prev }; if (!t || t === generated[writing.ref]) delete next[writing.ref]; else next[writing.ref] = { text: t, base: generated[writing.ref] ?? '' }; return next })
+    setWriting(null)
+  }
+  const resetText = (ref: string) => setWritten(prev => { const next = { ...prev }; delete next[ref]; return next })
 
   function startRename(key: string, current: string) { setRenaming(key); setDraft(current) }
   function saveRename(key: string, standard: string) {
@@ -109,10 +186,15 @@ export function ChooseContent({ title, outlinePath, confirmLabel, onChoose, onCl
   function confirm() {
     if (!data) return
     const used = Object.fromEntries(Object.entries(renamed).filter(([key]) => sections.has(key)))        // a heading that is not printed needs no new name
+    const usedTexts = Object.fromEntries(Object.entries(texts.used).filter(([ref]) => {                  // text of a heading or a request that is not printed is not sent
+      const slash = ref.lastIndexOf('/')
+      return sections.has(ref.slice(slash + 1)) && (slash < 0 || requests.has(ref.slice(0, slash)))
+    }))
     onChoose({
       sections: allSections ? undefined : data.sections.filter(s => sections.has(s.key)).map(s => s.key),
       flowIds: allRequests ? undefined : data.requests.filter(r => requests.has(r.flowId)).map(r => r.flowId),
       ...(Object.keys(used).length > 0 ? { titles: used } : {}),
+      ...(Object.keys(usedTexts).length > 0 ? { texts: usedTexts } : {}),
     })
   }
 
@@ -132,7 +214,7 @@ export function ChooseContent({ title, outlinePath, confirmLabel, onChoose, onCl
           </div>
           <div className={`choose-layout ${pane}`}>
             <div className="choose-side">
-              <p className="muted small">Tick what should be in the PDF, and press the pencil to give a heading your own wording. The document on the right shows exactly what will be printed. The cover is always there.</p>
+              <p className="muted small">Tick what should be in the PDF, press the pencil to give a heading your own wording, and the note pad to write the text under it yourself. The document on the right shows exactly what will be printed. The cover is always there.</p>
               <div className="choose-head">
                 <h3>Headings</h3>
                 <span className="muted small" role="status">{sections.size} of {data.sections.length} ticked</span>
@@ -143,7 +225,7 @@ export function ChooseContent({ title, outlinePath, confirmLabel, onChoose, onCl
                 {data.sections.map(s => {
                   const name = renamed[s.key] ?? s.title                  // what the heading is called in this PDF
                   return (
-                    <li key={s.key} className={`choose-row${renaming === s.key ? ' is-renaming' : ''}`}>
+                    <li key={s.key} className={`choose-row${renaming === s.key ? ' is-renaming' : ''}${writing?.key === s.key ? ' is-writing' : ''}`}>
                       {renaming === s.key ? (
                         <form className="heading-edit" data-escape-own onSubmit={e => { e.preventDefault(); saveRename(s.key, s.title) }} onKeyDown={e => { if (e.key === 'Escape') { e.stopPropagation(); setRenaming(null) } }}>
                           <label className="sr-only" htmlFor={`heading-${s.key}`}>Heading for {name}</label>
@@ -156,12 +238,37 @@ export function ChooseContent({ title, outlinePath, confirmLabel, onChoose, onCl
                         <>
                           <label className="check">
                             <input type="checkbox" checked={sections.has(s.key)} onChange={() => toggle(sections, setSections, s.key)} />
-                            <span><b>{name}</b>{renamed[s.key] && <span className="muted small"> (renamed)</span>}<br /><span className="muted small">{renamed[s.key] ? `Standard heading: ${s.title}` : s.detail}</span></span>
+                            <span><b>{name}</b>{renamed[s.key] && <span className="muted small"> (renamed)</span>}{s.parts.some(p => texts.used[refOf(s.key, p.flowId)] !== undefined) && <span className="muted small"> (text edited)</span>}<br /><span className="muted small">{renamed[s.key] ? `Standard heading: ${s.title}` : s.detail}</span></span>
                           </label>
                           <button className="btn link" aria-label={`Rename the heading ${name}`} title="Rename this heading" onClick={() => startRename(s.key, name)}><PencilSimple size={16} aria-hidden /></button>
                           {renamed[s.key] && <button className="btn link" aria-label={`Use the standard heading ${s.title}`} title={`Back to “${s.title}”`} onClick={() => resetHeading(s.key)}><ArrowCounterClockwise size={16} aria-hidden /></button>}
+                          {TEXT_EDITABLE.has(s.key) && s.parts.length > 0 && (
+                            <button className="btn link" aria-label={`Edit the text under ${name}`} title="Edit the text under this heading" onClick={() => startWriting(s.key, refOf(s.key, s.parts[0].flowId))}><NotePencil size={16} aria-hidden /></button>
+                          )}
+                          {s.parts.some(p => texts.used[refOf(s.key, p.flowId)] !== undefined) && (
+                            <button className="btn link" aria-label={`Use the generated text under ${name}`} title="Back to the generated text" onClick={() => s.parts.forEach(p => resetText(refOf(s.key, p.flowId)))}><ArrowCounterClockwise size={16} aria-hidden /></button>
+                          )}
                           <button className="btn link" aria-label={`Show ${name} in the document`} disabled={!sections.has(s.key)} onClick={() => show(s.key)}><Eye size={16} aria-hidden />Show</button>
                         </>
+                      )}
+                      {writing?.key === s.key && (
+                        <form className="text-edit" data-escape-own onSubmit={e => { e.preventDefault(); saveWriting() }} onKeyDown={e => { if (e.key === 'Escape') { e.stopPropagation(); setWriting(null) } }}>
+                          {s.parts.length > 1 && (
+                            <label className="text-edit-request">Request
+                              <select className="input" value={writing.ref} onChange={e => { setWriting({ key: s.key, ref: e.target.value }); setTextDraft(texts.used[e.target.value] ?? generated[e.target.value] ?? '') }}>
+                                {s.parts.map(p => { const r = data.requests.find(x => x.flowId === p.flowId); return <option key={p.flowId} value={refOf(s.key, p.flowId)}>{r ? `${r.code} ${r.title}` : p.flowId}</option> })}
+                              </select>
+                            </label>
+                          )}
+                          <label htmlFor={`text-${s.key}`}>Text under {name}</label>
+                          <textarea id={`text-${s.key}`} className="input" rows={10} autoFocus value={textDraft} maxLength={MAX_TEXT} onChange={e => setTextDraft(e.target.value)} />
+                          <div className="muted small">One line for each paragraph. Start a line with “- ” to make it a bullet. What you write replaces the generated text under this heading in the PDF; a list or table there becomes plain lines. It is kept for the next PDF of this document.</div>
+                          <div className="text-edit-actions">
+                            <button className="btn primary" type="submit">Save text</button>
+                            <button className="btn" type="button" onClick={() => setWriting(null)}>Cancel</button>
+                            <button className="btn link" type="button" onClick={() => setTextDraft(generated[writing.ref] ?? '')}>Use the generated text</button>
+                          </div>
+                        </form>
                       )}
                     </li>
                   )
@@ -170,6 +277,10 @@ export function ChooseContent({ title, outlinePath, confirmLabel, onChoose, onCl
               {Object.keys(renamed).length > 0 && (
                 <p className="muted small">{Object.keys(renamed).length} heading{Object.keys(renamed).length === 1 ? '' : 's'} renamed. Your wording is kept for the next PDF of this document. <button className="btn link" onClick={() => setTitles({})}>Use the standard headings</button></p>
               )}
+              {Object.keys(texts.used).length > 0 && (
+                <p className="muted small">{Object.keys(texts.used).length} text{Object.keys(texts.used).length === 1 ? '' : 's'} written by you. <button className="btn link" onClick={() => setWritten({})}>Use the generated text everywhere</button></p>
+              )}
+              {texts.outdated > 0 && <Alert tone="warn">{texts.outdated} of your edited texts {texts.outdated === 1 ? 'was' : 'were'} not used: the notes were analysed again since you wrote {texts.outdated === 1 ? 'it' : 'them'}, so the generated text under {texts.outdated === 1 ? 'that heading is' : 'those headings are'} new. Press the pencil on a heading to write it again.</Alert>}
               {sections.size === 0 && <Alert tone="warn">Tick at least one heading.</Alert>}
 
               {manyRequests && (

@@ -77,8 +77,8 @@ describe('the browser demo backend', () => {
     const answered = await call<{ status: string; answer: string }>('PUT', `clarifications/${qs[0].id}`, { answer: 'The first mapped ward' }, t)
     expect(answered.data).toMatchObject({ status: 'Answered', answer: 'The first mapped ward' })
 
-    // the document, with one heading renamed, is made and can be opened
-    const job = (await call<{ jobId: string; state: string }>('POST', `flows/${quick.flowId}/guide`, { titles: { purpose: 'Why we are doing this' } }, t)).data
+    // the document, with one heading renamed and the text under it written by the person, is made and can be opened
+    const job = (await call<{ jobId: string; state: string }>('POST', `flows/${quick.flowId}/guide`, { titles: { purpose: 'Why we are doing this' }, texts: { purpose: 'Written by the consultant.\n- first point' } }, t)).data
     expect(job.state).toBe('Queued')
     later()
     const done = (await call<{ state: string; resultId: string }>('GET', `jobs/${job.jobId}`, undefined, t)).data
@@ -88,6 +88,7 @@ describe('the browser demo backend', () => {
     const page = await handleDemoRequest({ url: `/api/v1/documents/${done.resultId}/versions/1/download?format=pdf`, method: 'GET', headers: { Authorization: `Bearer ${t}` } })
     const html = await page!.text()
     expect(html).toContain('Why we are doing this')
+    expect(html).toContain('<p>Written by the consultant.</p><ul><li>first point</li></ul>')
     expect(html).toContain('Pharmacy issue to ward')
     expect(html).not.toMatch(/AOSTA|BACKBONE/)
 

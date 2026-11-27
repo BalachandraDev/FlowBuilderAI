@@ -96,4 +96,89 @@ public class GuideHeadingTests
     }
 
     private static IReadOnlySet<string> Only(params string[] keys) => keys.ToHashSet();
+
+    // ---- the text under a heading --------------------------------------------------------------------------------------
+
+    private static GuideInput WithText(IReadOnlySet<string>? sections, IReadOnlyDictionary<string, string>? texts, IReadOnlyDictionary<string, string>? titles = null) =>
+        Input(sections, titles) with { SectionTexts = texts };
+    private static IReadOnlyDictionary<string, string> Texts(params (string Key, string Text)[] t) => t.ToDictionary(x => x.Key, x => x.Text);
+
+    [Fact]
+    public void Text_the_person_wrote_is_printed_instead_of_the_generated_text_under_the_same_heading_and_number()
+    {
+        var generated = GuideHtmlBuilder.Build(Input(Only("purpose", "scope")));
+        var html = GuideHtmlBuilder.Build(WithText(Only("purpose", "scope"), Texts(("purpose", "We want one bed screen for every ward.\n- Faster allocation\n- Fewer phone calls\nSigned off by the CMO."))));
+
+        Headings(html).Should().Be(Headings(generated), "only the text under the heading changes");
+        html.Should().Contain("<p>We want one bed screen for every ward.</p><ul><li>Faster allocation</li><li>Fewer phone calls</li></ul><p>Signed off by the CMO.</p>");
+        var purpose = Regex.Match(html, @"<h2[^>]*><span>1</span>Purpose</h2>.*?</section>", RegexOptions.Singleline).Value;
+        purpose.Should().NotBe(Regex.Match(generated, @"<h2[^>]*><span>1</span>Purpose</h2>.*?</section>", RegexOptions.Singleline).Value);
+        html.Should().Contain("Scope", "a section with no text of the person's own is still the generated one");
+    }
+
+    [Fact]
+    public void Written_text_and_a_renamed_heading_work_together_and_the_text_is_written_safely()
+    {
+        var html = GuideHtmlBuilder.Build(WithText(Only("purpose"), Texts(("purpose", "<script>alert(1)</script> & \"quoted\"")), Titles(("purpose", "Aim"))));
+        Headings(html).Should().Be("1:Aim");
+        html.Should().NotContain("<script>alert").And.Contain("&lt;script&gt;alert(1)&lt;/script&gt; &amp; &quot;quoted&quot;");
+    }
+
+    [Fact]
+    public void Text_for_a_section_that_is_not_printed_is_ignored_and_the_outline_always_shows_the_generated_text()
+    {
+        var input = WithText(Only("scope"), Texts(("purpose", "Never printed")));
+        GuideHtmlBuilder.Build(input).Should().NotContain("Never printed");
+        var outline = GuideHtmlBuilder.Outline(WithText(null, Texts(("purpose", "Written by the person"))), standalone: true);
+        outline.Single(s => s.Key == "purpose").Html.Should().NotContain("Written by the person");
+    }
+
+    [Fact]
+    public void Written_text_is_checked_tidied_and_empty_text_dropped()
+    {
+        GuideSections.ParseTexts(null).Should().BeNull();
+        GuideSections.ParseTexts(Texts(("purpose", "  \n  "))).Should().BeNull("empty text keeps the generated text");
+        GuideSections.ParseTexts(Texts(("purpose", "  First   line \r\n\r\n\r\n- a  bullet\u0007 \n"))).Should().Equal(new Dictionary<string, string> { ["purpose"] = "First line\n- a bullet" });
+
+        var request = Guid.NewGuid();
+        GuideSections.ParseTexts(Texts(($"{request:N}/scope", "Mine"))).Should().Equal(new Dictionary<string, string> { [$"{request:D}/scope"] = "Mine" }, "a request in a bigger document is named in the key");
+
+        foreach (var (key, code) in new[] { ("nonsense", "unknown_section"), ("signoff", "section_not_editable"), ("diagram", "section_not_editable"), ("control", "section_not_editable"), ("not-a-guid/purpose", "unknown_section") })
+        {
+            var bad = () => GuideSections.ParseTexts(Texts((key, "x")));
+            bad.Should().Throw<DomainException>($"'{key}' cannot be written").Which.Code.Should().Be(code);
+        }
+        var tooLong = () => GuideSections.ParseTexts(Texts(("purpose", new string('x', GuideSections.MaxTextLength + 1))));
+        tooLong.Should().Throw<DomainException>().Which.Code.Should().Be("text_too_long");
+        GuideSections.ParseTexts(Texts(("purpose", new string('x', GuideSections.MaxTextLength)))).Should().ContainKey("purpose");
+    }
+
+    [Fact]
+    public void Text_stored_with_a_job_is_read_back_and_picked_out_for_each_request()
+    {
+        var a = Guid.NewGuid(); var b = Guid.NewGuid();
+        var stored = System.Text.Json.JsonSerializer.Serialize(new Dictionary<string, string> { [$"{a:D}/purpose"] = "For A", [$"{b:D}/purpose"] = "For B", [$"{a:D}/scope"] = "Scope of A" });
+        var all = GuideSections.ReadTexts(stored);
+        GuideSections.TextsOf(all, a).Should().Equal(new Dictionary<string, string> { ["purpose"] = "For A", ["scope"] = "Scope of A" });
+        GuideSections.TextsOf(all, b).Should().Equal(new Dictionary<string, string> { ["purpose"] = "For B" });
+        GuideSections.TextsOf(all, Guid.NewGuid()).Should().BeNull();
+        GuideSections.TextsOf(all, null).Should().BeNull("a request's own document has no requests in front of its keys");
+        GuideSections.TextsOf(GuideSections.ReadTexts("{\"purpose\":\"Mine\"}"), null).Should().Equal(new Dictionary<string, string> { ["purpose"] = "Mine" });
+        GuideSections.ReadTexts(null).Should().BeNull();
+        var damaged = () => GuideSections.ReadTexts("{\"signoff\":\"x\"}");
+        damaged.Should().Throw<DomainException>();
+    }
+
+    [Fact]
+    public void Each_request_of_a_bigger_document_prints_its_own_text()
+    {
+        var a = Guid.NewGuid(); var b = Guid.NewGuid();
+        var texts = GuideSections.ParseTexts(new Dictionary<string, string> { [$"{a:D}/purpose"] = "Words for request A", [$"{b:D}/purpose"] = "Words for request B" });
+        var html = GuideHtmlBuilder.BuildCombined(new CombinedGuideInput("IMPL-TH-FULL", "Test Hospital: whole project", "Test Hospital", "Client", null, "Asha Lead", new DateTime(2026, 11, 19),
+            [new CombinedModule("Ward", [
+                new CombinedRequest("r-a", "NR-001", "Bed allocation", Input(Only("purpose")) with { SectionTexts = GuideSections.TextsOf(texts, a) }),
+                new CombinedRequest("r-b", "NR-002", "Bed transfer", Input(Only("purpose")) with { SectionTexts = GuideSections.TextsOf(texts, b) })])], false));
+        html.Should().Contain("Words for request A").And.Contain("Words for request B");
+        html.IndexOf("Words for request A", StringComparison.Ordinal).Should().BeLessThan(html.IndexOf("Words for request B", StringComparison.Ordinal));
+    }
 }

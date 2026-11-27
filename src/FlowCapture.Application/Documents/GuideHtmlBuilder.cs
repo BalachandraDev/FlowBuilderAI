@@ -20,6 +20,8 @@ public sealed record GuideInput(
     public IReadOnlySet<string>? Sections { get; init; }
     /// <summary>Headings the person renamed for this PDF: section key to the heading to print instead of the standard one. Null prints the standard headings.</summary>
     public IReadOnlyDictionary<string, string>? SectionTitles { get; init; }
+    /// <summary>Text the person wrote under a heading, printed instead of the generated text: section key to text. Null prints the generated text everywhere.</summary>
+    public IReadOnlyDictionary<string, string>? SectionTexts { get; init; }
 }
 
 /// <summary>One heading of the document with what is under it, as shown to the person choosing what to print.</summary>
@@ -64,6 +66,62 @@ public static class GuideSections
     /// <summary>Reads the titles stored with a document job (null when there are none).</summary>
     public static IReadOnlyDictionary<string, string>? ReadTitles(string? json) =>
         string.IsNullOrWhiteSpace(json) ? null : ParseTitles(System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(json));
+
+    /// <summary>The sections whose text can be replaced by the person's own: the ones that are written text, lists and tables. Not the document control, the drawing, the screens, the pictures or the sign-off.</summary>
+    public static readonly IReadOnlySet<string> TextEditable = new HashSet<string> { "purpose", "scope", "requirements", "roles", "usecase", "stages", "touchpoints", "open" };
+    public static bool IsTextEditable(string key) => TextEditable.Contains(key);
+    public const int MaxTextLength = 8000;
+
+    /// <summary>
+    /// The text the person wrote, checked. A key is a section key (a request's own document) or "requestId/sectionKey" (a project or module PDF, where each request has its own
+    /// text). An unknown or not editable section is refused, so is text over <see cref="MaxTextLength"/> letters; lines are tidied, and empty text is dropped (the section keeps
+    /// its generated text). Null when nothing was written.
+    /// </summary>
+    public static IReadOnlyDictionary<string, string>? ParseTexts(IReadOnlyDictionary<string, string>? written)
+    {
+        if (written is null || written.Count == 0) return null;
+        var result = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var (rawKey, rawText) in written)
+        {
+            var slash = (rawKey ?? "").LastIndexOf('/');
+            var key = (slash < 0 ? rawKey ?? "" : rawKey![(slash + 1)..]).Trim();
+            Guid? request = null;
+            if (slash >= 0)
+            {
+                if (!Guid.TryParse(rawKey![..slash].Trim(), out var id)) throw new Domain.DomainException($"'{rawKey}' is not a section of a request.", "unknown_section");
+                request = id;
+            }
+            if (!IsKnown(key)) throw new Domain.DomainException($"'{key}' is not a section of the document.", "unknown_section");
+            if (!IsTextEditable(key)) throw new Domain.DomainException($"The text of '{TitleOf(key)}' cannot be edited.", "section_not_editable");
+            var text = CleanText(rawText);
+            if (text.Length > MaxTextLength) throw new Domain.DomainException($"The text of a section can have at most {MaxTextLength} letters.", "text_too_long");
+            if (text.Length == 0) continue;
+            result[request is { } r ? $"{r:D}/{key}" : key] = text;
+        }
+        return result.Count == 0 ? null : result;
+    }
+
+    /// <summary>Line breaks made uniform, spaces tidied, empty lines and control characters removed. A line that starts with "- " is a bullet.</summary>
+    internal static string CleanText(string? raw)
+    {
+        var lines = new string((raw ?? "").Where(c => !char.IsControl(c) || c == '\n' || c == '\r' || c == '\t').ToArray()).Replace("\r\n", "\n").Replace('\r', '\n').Split('\n')
+            .Select(l => System.Text.RegularExpressions.Regex.Replace(l, @"[ \t]+", " ").Trim()).Where(l => l.Length > 0);
+        return string.Join("\n", lines);
+    }
+
+    /// <summary>Reads the texts stored with a document job (null when there are none).</summary>
+    public static IReadOnlyDictionary<string, string>? ReadTexts(string? json) =>
+        string.IsNullOrWhiteSpace(json) ? null : ParseTexts(System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(json));
+
+    /// <summary>The texts that belong to one request's document, by plain section key: the ones without a request in front of them for a request's own document, the ones of that request in a bigger one.</summary>
+    public static IReadOnlyDictionary<string, string>? TextsOf(IReadOnlyDictionary<string, string>? texts, Guid? request)
+    {
+        if (texts is null) return null;
+        var prefix = request is { } r ? $"{r:D}/" : null;
+        var own = texts.Where(t => prefix is null ? !t.Key.Contains('/') : t.Key.StartsWith(prefix, StringComparison.Ordinal))
+            .ToDictionary(t => prefix is null ? t.Key : t.Key[prefix.Length..], t => t.Value, StringComparer.Ordinal);
+        return own.Count == 0 ? null : own;
+    }
 
     /// <summary>The keys people may choose from: all of them for a request's own document, without control and sign-off for a chapter of a bigger one.</summary>
     public static IEnumerable<string> For(bool ownDocument) => All.Where(s => ownDocument || !s.OwnDocumentOnly).Select(s => s.Key);
@@ -143,6 +201,9 @@ public static class GuideHtmlBuilder
         {
             found?.Add(new GuideSection(key, title, detail, slim ? Slim(key, part.ToString()) : part.ToString()));
             if (!Want(key)) return;
+            // text the person wrote instead of the generated text: the section keeps its heading and number, and is printed from their lines (only in what is printed, never in the outline)
+            if (g.SectionTexts is not null && GuideSections.IsTextEditable(key) && g.SectionTexts.TryGetValue(key, out var written) && !string.IsNullOrWhiteSpace(written))
+                part.Clear().Append(TextSection(title, written));
             // a heading the person renamed: each section writes its heading as </span>Title</h2>, so that is what is swapped (only in what is printed, never in the outline)
             if (g.SectionTitles is not null && g.SectionTitles.TryGetValue(key, out var custom) && !string.IsNullOrWhiteSpace(custom))
                 part.Replace("</span>" + E(title) + "</h2>", "</span>" + E(custom) + "</h2>");
@@ -771,6 +832,31 @@ public static class GuideHtmlBuilder
     }
 
     private static bool SameText(string a, string b) => string.Equals(a.Trim(), b.Trim(), StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// A section made from the person's own lines: the heading as every section writes it, then a paragraph for each line, and a list for the lines that start with "- ".
+    /// The web page builds the same markup for its preview, so what is seen there is what is printed.
+    /// </summary>
+    internal static string TextSection(string title, string text)
+    {
+        var sb = new StringBuilder("<section><h2><span>").Append(Mark).Append("</span>").Append(E(title)).Append("</h2>");
+        var list = false;
+        foreach (var line in text.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (line.StartsWith("- ", StringComparison.Ordinal))
+            {
+                if (!list) { sb.Append("<ul>"); list = true; }
+                sb.Append("<li>").Append(E(line[2..])).Append("</li>");
+            }
+            else
+            {
+                if (list) { sb.Append("</ul>"); list = false; }
+                sb.Append("<p>").Append(E(line)).Append("</p>");
+            }
+        }
+        if (list) sb.Append("</ul>");
+        return sb.Append("</section>").ToString();
+    }
 
     private static void Para(StringBuilder sb, string? text)
     {

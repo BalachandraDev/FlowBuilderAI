@@ -184,8 +184,9 @@ public sealed class LibraryHandlers(
 
         var sections = GuideSections.Parse(r.Choice?.Sections);                      // refuses an empty choice or an unknown section
         var titles = RenamedHeadings(r.Choice, sections);                            // refuses an unknown section or a heading that is too long
+        var texts = WrittenTexts(r.Choice, sections, null);                          // refuses an unknown or not editable section, or text that is too long
         var job = new DocumentJobRun { ProjectId = pd.ProjectId, Scope = DocumentScope.Guide, FlowId = flow.Id, IncludeDiagrams = true, RequestedBy = user.RequireUserId(),
-            SectionsJson = sections is null ? null : JsonSerializer.Serialize(sections.OrderBy(s => s)), TitlesJson = titles };
+            SectionsJson = sections is null ? null : JsonSerializer.Serialize(sections.OrderBy(s => s)), TitlesJson = titles, TextsJson = texts };
         db.DocumentJobRuns.Add(job);
         await db.SaveChangesAsync(ct);
         jobs.EnqueueGuide(job.Id);
@@ -244,6 +245,7 @@ public sealed class LibraryHandlers(
         var sections = GuideSections.Parse(choice?.Sections);
         var titles = RenamedHeadings(choice, sections);
         var wanted = choice?.FlowIds?.Distinct().ToList() ?? [];
+        var texts = WrittenTexts(choice, sections, wanted);
         var analysed = db.Flows.AsNoTracking().Where(f => f.ProjectDepartment!.ProjectId == projectId && f.CurrentVersionNo > 0);
         if (moduleId is { } m) analysed = analysed.Where(f => f.ProjectDepartmentId == m);
         if (wanted.Count > 0) analysed = analysed.Where(f => wanted.Contains(f.Id));
@@ -256,7 +258,7 @@ public sealed class LibraryHandlers(
         if (running is not null) return DocumentHandlers.ToDto(running);
 
         var job = new DocumentJobRun { ProjectId = projectId, Scope = scope, ProjectDepartmentId = moduleId, IncludeDiagrams = true, RequestedBy = user.RequireUserId(),
-            SectionsJson = sections is null ? null : JsonSerializer.Serialize(sections.OrderBy(s => s)), FlowIdsJson = JsonSerializer.Serialize(wanted), TitlesJson = titles };
+            SectionsJson = sections is null ? null : JsonSerializer.Serialize(sections.OrderBy(s => s)), FlowIdsJson = JsonSerializer.Serialize(wanted), TitlesJson = titles, TextsJson = texts };
         db.DocumentJobRuns.Add(job);
         await db.SaveChangesAsync(ct);
         jobs.EnqueueGuide(job.Id);
@@ -269,6 +271,25 @@ public sealed class LibraryHandlers(
         var titles = GuideSections.ParseTitles(choice?.Titles);
         if (titles is not null && sections is not null) titles = titles.Where(t => sections.Contains(t.Key)).ToDictionary(t => t.Key, t => t.Value);
         return titles is null || titles.Count == 0 ? null : JsonSerializer.Serialize(titles);
+    }
+
+    /// <summary>
+    /// The text the person wrote under headings, checked and stored as JSON (null when none). Text of a section that was not chosen, or of a request that was not chosen
+    /// (<paramref name="requests"/>, when some were), is dropped: it is never printed. A request's own document keeps plain section keys; a bigger one needs the request in front.
+    /// </summary>
+    private static string? WrittenTexts(GuideChoiceRequest? choice, IReadOnlySet<string>? sections, IReadOnlyCollection<Guid>? requests)
+    {
+        var texts = GuideSections.ParseTexts(choice?.Texts);
+        if (texts is null) return null;
+        var kept = texts.Where(t =>
+        {
+            var slash = t.Key.IndexOf('/');
+            var key = slash < 0 ? t.Key : t.Key[(slash + 1)..];
+            if (sections is not null && !sections.Contains(key)) return false;
+            if (requests is null) return slash < 0;                                           // a request's own document has no requests in its choice
+            return slash >= 0 && (requests.Count == 0 || requests.Contains(Guid.Parse(t.Key[..slash])));
+        }).ToDictionary(t => t.Key, t => t.Value);
+        return kept.Count == 0 ? null : JsonSerializer.Serialize(kept);
     }
 
     // ------------------------------------------------------------------ photos of notes

@@ -8,7 +8,8 @@ export interface GuidePart { flowId: string; html: string }
 export interface GuideSection { key: string; title: string; detail: string; parts: GuidePart[] }
 export interface GuideRequest { flowId: string; code: string; title: string; module: string }
 export interface GuideOutline { sections: GuideSection[]; requests: GuideRequest[]; style: string; cover: string }/** What to put in the PDF. Leaving a part out means all of it. */
-export interface GuideChoice { sections?: string[]; flowIds?: string[]; /** Headings the person renamed: section key to the new heading. */ titles?: Record<string, string> }
+export interface GuideChoice { sections?: string[]; flowIds?: string[]; /** Headings the person renamed: section key to the new heading. */ titles?: Record<string, string>
+  /** Text the person wrote under a heading instead of the generated text: section key (or "requestId/sectionKey" in a project or module PDF) to the text. A line starting with "- " is a bullet. */ texts?: Record<string, string> }
 
 export interface ProjectMembership { projectId: string; projectCode: string; projectRole: 'Executive' | 'Lead' | 'Reviewer' | string }
 export interface UserProfile { id: string; email: string; displayName: string; roles: string[]; projects: ProjectMembership[] }

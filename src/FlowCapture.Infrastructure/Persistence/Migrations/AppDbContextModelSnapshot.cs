@@ -979,6 +979,9 @@ namespace FlowCapture.Infrastructure.Persistence.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("nvarchar(32)");
 
+                    b.Property<string>("TextsJson")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("TitlesJson")
                         .HasColumnType("nvarchar(max)");
 

@@ -445,6 +445,8 @@ public class DocumentJobRun : AuditableEntity
     public string? SectionsJson { get; set; }
     /// <summary>The headings the person renamed for this PDF (JSON object: section key to new heading). Null means every heading keeps its own name.</summary>
     public string? TitlesJson { get; set; }
+    /// <summary>The text the person wrote under a heading instead of the generated text (JSON object: section key, or "requestId/sectionKey", to text). Null means all text is as generated.</summary>
+    public string? TextsJson { get; set; }
     public string? AssignedBy { get; set; }
     public bool IncludeDiagrams { get; set; } = true;
     public DocJobStatus Status { get; set; } = DocJobStatus.Queued;

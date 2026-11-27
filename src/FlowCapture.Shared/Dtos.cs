@@ -6,8 +6,8 @@ namespace FlowCapture.Shared.Dtos;
 public record PagedResult<T>(IReadOnlyList<T> Items, int Page, int PageSize, int Total);
 public record JobDto(Guid JobId, string Kind, string State, int? Percent, string? Message, Guid? ResultId, DateTime CreatedAt);
 
-/// <summary>What to put in an implementation PDF. Nothing sent means everything. <paramref name="Sections"/> are the keys from the outline; <paramref name="FlowIds"/> (project and module PDFs) the requests to include; <paramref name="Titles"/> the headings the person renamed (section key to new heading).</summary>
-public sealed record GuideChoiceRequest(IReadOnlyList<string>? Sections = null, IReadOnlyList<Guid>? FlowIds = null, IReadOnlyDictionary<string, string>? Titles = null);
+/// <summary>What to put in an implementation PDF. Nothing sent means everything. <paramref name="Sections"/> are the keys from the outline; <paramref name="FlowIds"/> (project and module PDFs) the requests to include; <paramref name="Titles"/> the headings the person renamed (section key to new heading); <paramref name="Texts"/> the text the person wrote under a heading instead of the generated text (section key to text, or "requestId/sectionKey" in a project or module PDF; a line starting with "- " is a bullet).</summary>
+public sealed record GuideChoiceRequest(IReadOnlyList<string>? Sections = null, IReadOnlyList<Guid>? FlowIds = null, IReadOnlyDictionary<string, string>? Titles = null, IReadOnlyDictionary<string, string>? Texts = null);
 /// <summary>
 /// One heading the PDF would have, what is under it in a few words, and the section itself as it is printed (one <see cref="GuidePartDto"/> for a request's own
 /// document, one for each request in a project or module PDF) so it can be seen before choosing.

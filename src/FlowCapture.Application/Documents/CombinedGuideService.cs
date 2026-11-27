@@ -31,7 +31,7 @@ public sealed class CombinedGuideService(
         var preparedBy = await db.Users.AsNoTracking().Where(u => u.Id == job.RequestedBy).Select(u => u.DisplayName).FirstOrDefaultAsync(ct) ?? projectRow.Lead?.DisplayName ?? "";
         var demo = (await aiStatus.GetAsync(ct)).Provider == "demo";
 
-        var loaded = await LoadAsync(job.ProjectId, job.Scope == DocumentScope.GuideModule ? job.ProjectDepartmentId : null, preparedBy, demo, only, sections, ct, GuideSections.ReadTitles(job.TitlesJson));
+        var loaded = await LoadAsync(job.ProjectId, job.Scope == DocumentScope.GuideModule ? job.ProjectDepartmentId : null, preparedBy, demo, only, sections, ct, GuideSections.ReadTitles(job.TitlesJson), GuideSections.ReadTexts(job.TextsJson));
         var project = loaded.Project;
         var module = loaded.Module;
 
@@ -83,7 +83,7 @@ public sealed class CombinedGuideService(
         return new GuideOutlineDto(sections, requests, GuideHtmlBuilder.PreviewStyle());
     }
 
-    private async Task<Loaded> LoadAsync(Guid projectId, Guid? moduleId, string preparedBy, bool demo, IReadOnlySet<Guid>? only, IReadOnlySet<string>? sections, CancellationToken ct, IReadOnlyDictionary<string, string>? titles = null)
+    private async Task<Loaded> LoadAsync(Guid projectId, Guid? moduleId, string preparedBy, bool demo, IReadOnlySet<Guid>? only, IReadOnlySet<string>? sections, CancellationToken ct, IReadOnlyDictionary<string, string>? titles = null, IReadOnlyDictionary<string, string>? texts = null)
     {
         var project = await db.Projects.AsNoTracking().Include(p => p.Lead).Include(p => p.Client).FirstOrDefaultAsync(p => p.Id == projectId, ct)
                       ?? throw new NotFoundException("Project", projectId);
@@ -123,7 +123,7 @@ public sealed class CombinedGuideService(
                     var content = FlowJson.Deserialize(version.Content);
                     input = new GuideInput("", project.HospitalName, f.MenuName, name, preparedBy, clock.UtcNow, version.VersionNo, content, GuidePlanBuilder.FromFlow(content),
                         null, openByFlow.GetValueOrDefault(f.Id) ?? [], demo, null, null, false, FlowDiagramBuilder.Build(content))
-                    { RequestCode = f.RequestNo > 0 ? code : null, Figures = await figures.ForDocumentAsync(f.Id, ct), Sections = sections, SectionTitles = titles };
+                    { RequestCode = f.RequestNo > 0 ? code : null, Figures = await figures.ForDocumentAsync(f.Id, ct), Sections = sections, SectionTitles = titles, SectionTexts = GuideSections.TextsOf(texts, f.Id) };
                     sources.Add(new { flowId = f.Id, versionNo = version.VersionNo });
                 }
                 requests.Add(new CombinedRequest(Anchor(f.Id), code, f.MenuName, input));

@@ -281,7 +281,7 @@ function printable(s: DemoState, d: Doc, ver: Ver): string {
   const outline = outlineFor(s, scope, ver.by)
   const sections = new Set(ver.choice?.sections ?? outline.sections.map(x => x.key))
   const requests = new Set(ver.choice?.flowIds ?? outline.requests.map(x => x.flowId))
-  const page = composePreview(outline, sections, requests, ver.choice?.titles ?? {})
+  const page = composePreview(outline, sections, requests, ver.choice?.titles ?? {}, ver.choice?.texts ?? {})
   const note = '<div class="demo-note">Demo: this is the printable page of the document. Press <b>Ctrl+P</b> (or <b>Cmd+P</b>) and choose <b>Save as PDF</b> to get the PDF. The real server makes the PDF itself.</div>'
   const css = '.demo-note{position:sticky;top:0;z-index:5;background:#fff7e6;color:#5b3b00;border-bottom:1px solid #e8c77a;padding:8px 14px;font:14px/1.4 system-ui,sans-serif}@media print{.demo-note{display:none}}'
   return page.replace('</style>', `${css}</style>`).replace('<body>', `<body>${note}`)
@@ -544,7 +544,7 @@ on('GET', 'flows/:id/diagram', (c, id) => {
 })
 
 // --- documents
-const choiceOf = (b: any): GuideChoice | null => (b && (b.sections || b.flowIds || b.titles) ? { sections: b.sections, flowIds: b.flowIds, titles: b.titles } : null)   // eslint-disable-line @typescript-eslint/no-explicit-any
+const choiceOf = (b: any): GuideChoice | null => (b && (b.sections || b.flowIds || b.titles || b.texts) ? { sections: b.sections, flowIds: b.flowIds, titles: b.titles, texts: b.texts } : null)   // eslint-disable-line @typescript-eslint/no-explicit-any
 const jobDto = (j: Job) => ({ jobId: j.jobId, kind: j.kind, state: j.state, percent: j.state === 'Succeeded' ? 100 : j.state === 'Running' ? 50 : null, message: null, resultId: j.state === 'Succeeded' ? j.docId : null, createdAt: j.createdAt })
 on('GET', 'flows/:id/guide-outline', (c, id) => { flowFor(c.s, me(c), id); if (!latest(c.s, id)) fail(422, 'Analyse the notes first: the document is made from the analysed workflow.', 'not_analysed'); return outlineFor(c.s, { flowId: id }, me(c).displayName) })
 on('POST', 'flows/:id/guide', (c, id) => { const u = me(c); flowFor(c.s, u, id); return jobDto(startGuide(c.s, u, { flowId: id }, choiceOf(c.body))) })

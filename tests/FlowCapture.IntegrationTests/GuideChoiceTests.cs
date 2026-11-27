@@ -126,6 +126,16 @@ public class GuideChoiceTests
         var longTitle = await user.PostAsync($"/api/v1/flows/{quick.FlowId}/guide", new { titles = new Dictionary<string, string> { ["purpose"] = new string('x', 121) } });
         longTitle.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
         (await longTitle.ProblemAsync()).Should().Contain("heading_too_long");
+        // text under a heading: a section that does not exist, one whose text cannot be written (the sign-off), and text that is too long are refused too
+        var badText = await user.PostAsync($"/api/v1/flows/{quick.FlowId}/guide", new { texts = new Dictionary<string, string> { ["nonsense"] = "Mine" } });
+        badText.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+        (await badText.ProblemAsync()).Should().Contain("unknown_section");
+        var fixedText = await user.PostAsync($"/api/v1/flows/{quick.FlowId}/guide", new { texts = new Dictionary<string, string> { ["signoff"] = "Mine" } });
+        fixedText.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+        (await fixedText.ProblemAsync()).Should().Contain("section_not_editable");
+        var longText = await user.PostAsync($"/api/v1/flows/{quick.FlowId}/guide", new { texts = new Dictionary<string, string> { ["purpose"] = new string('x', 8001) } });
+        longText.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+        (await longText.ProblemAsync()).Should().Contain("text_too_long");
         (await _app.Services.GetRequiredService<IServiceScopeFactory>().CreateScope().ServiceProvider.GetRequiredService<IAppDbContext>().DocumentJobRuns.AsNoTracking()
             .CountAsync(j => j.FlowId == quick.FlowId)).Should().Be(0, "a refused request makes no job");
     }
@@ -151,6 +161,29 @@ public class GuideChoiceTests
         var again = (await user.GetAsync<List<LibraryDocumentDto>>("/api/v1/library")).Single(d => d.FlowId == quick.FlowId && d.Kind == "Guide");
         again.VersionNo.Should().BeGreaterThan(doc.VersionNo);
         PdfText(await (await user.GetAsync($"/api/v1/documents/{again.Id}/versions/{again.VersionNo}/download?format=pdf")).Content.ReadAsByteArrayAsync()).Should().NotContain("Why we are doing this");
+    }
+
+    [RequiresBrowserFact]
+    public async Task Text_written_under_a_heading_is_what_the_PDF_says_instead_of_the_generated_text_and_only_for_that_PDF()
+    {
+        var user = await NewUserAsync("writer");
+        var quick = await user.PostAsync<QuickProjectDto>("/api/v1/projects/quick", new QuickProjectRequest("Writer " + Guid.NewGuid().ToString("N")[..5], null));
+        await AnalyseAsync(user, quick.FlowId);
+
+        var started = await user.PostAsync($"/api/v1/flows/{quick.FlowId}/guide", new { sections = new[] { "purpose", "scope" }, texts = new Dictionary<string, string> { ["purpose"] = "The consultant wrote this sentence about the purpose.\n- A first bullet by the consultant", ["stages"] = "Not printed" } });
+        started.StatusCode.Should().Be(HttpStatusCode.Accepted, await started.ProblemAsync());
+        await _app.WhenJobsDone();
+        var doc = (await user.GetAsync<List<LibraryDocumentDto>>("/api/v1/library")).Single(d => d.FlowId == quick.FlowId && d.Kind == "Guide");
+        var text = PdfText(await (await user.GetAsync($"/api/v1/documents/{doc.Id}/versions/{doc.VersionNo}/download?format=pdf")).Content.ReadAsByteArrayAsync());
+        text.Should().Contain("The consultant wrote this sentence about the purpose.").And.Contain("A first bullet by the consultant");
+        text.Should().NotContain("Not printed", "the text of a heading that is not ticked is never printed");
+
+        // the next PDF without written text has the generated text again
+        (await user.PostAsync($"/api/v1/flows/{quick.FlowId}/guide", new { sections = new[] { "purpose" } })).StatusCode.Should().Be(HttpStatusCode.Accepted);
+        await _app.WhenJobsDone();
+        var again = (await user.GetAsync<List<LibraryDocumentDto>>("/api/v1/library")).Single(d => d.FlowId == quick.FlowId && d.Kind == "Guide");
+        again.VersionNo.Should().BeGreaterThan(doc.VersionNo);
+        PdfText(await (await user.GetAsync($"/api/v1/documents/{again.Id}/versions/{again.VersionNo}/download?format=pdf")).Content.ReadAsByteArrayAsync()).Should().NotContain("The consultant wrote this sentence");
     }
 
     [RequiresBrowserFact]
